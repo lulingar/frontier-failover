@@ -13,7 +13,7 @@ while true; do
     now=$( date +%s )
 
     echo "New monitor starting at $(date)" >> ${log}
-    python $here/hourly-monitor.py.new >> ${log} 
+    python $here/hourly-monitor.py >> ${log} 
     echo >> ${log}
 
     echo "Running again in ${delta} seconds..." >> ${log}

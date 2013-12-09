@@ -1,10 +1,12 @@
 #! /usr/bin/env python
 
 import calendar
-from datetime import datetime
+import json
 import os
 import socket
 import sys
+
+from datetime import datetime
 
 import pandas as pd
 import pygeoip
@@ -14,12 +16,10 @@ import FailoverLib as fl
 def main():
 
     # 10k queries per hour
-    site_rate_threshold = 10e3/3600
+    #site_rate_threshold = 10e3/3600
 
-    instances = [ 'cmsfrontier' + str(idx) for idx in (1,2,3) ]
-
-    last_stats_file = "/tmp/last_stats.csv"
     geoip_database_file = "~llinares/work/private/frontier/geoip/GeoIPOrg.dat"
+    instances_config_file = "instance_config.json"
 
     server_lists = "http://wlcg-squid-monitor.cern.ch/"
     geolist_file = server_lists + "geolist.txt"
@@ -30,7 +30,22 @@ def main():
     squids = fl.build_squids_list(geo, MO_view)
     geoip = fl.GeoIPWrapper( os.path.expanduser( geoip_database_file))
 
+    instance_config = json.load( open( instances_config_file))
+    json.dump(instance_config, open(instances_config_file, 'w'), indent=3)
+
+    for machine_group_name, machine_group_conf in instance_config.items():
+        analyze_failovers_to_group( machine_group_name, machine_group_conf, geo, squids, geoip)
+
+    return 0
+
+def analyze_failovers_to_group (groupname, groupconf, geo, squids, geoip):
+
+    instances = groupconf['instances']
+    last_stats_file = groupconf['file_last_stats']
+    site_rate_threshold = groupconf['rate_threshold']   # Unit: Queries/sec
+
     now = datetime.utcnow()
+
     awdata = fl.load_aggregated_awstats_data(instances)
 
     last_timestamp, last_awdata = load_last_data(last_stats_file)
@@ -39,23 +54,12 @@ def main():
     if not last_awdata:
         return 1
 
-    awdata = compute_traffic_delta(awdata, last_awdata, now, last_timestamp)
+    awdata = compute_traffic_delta( awdata, last_awdata, now, last_timestamp)
     awdata.insert( 0, 'IsSquid', awdata.index.isin(squids.Host) )
-    awdata = add_institutions(awdata, geoip.get_isp)
-    non_squid_stats, insti_high, offending = excess_failover_check (awdata, squids, site_rate_threshold)
+    awdata = add_institutions( awdata, geoip.get_isp)
+    non_squid_stats, insti_high, offending = excess_failover_check( awdata, squids, site_rate_threshold)
 
-    print 'Most frequent non-squids on record:'
-    print non_squid_stats.drop('IsSquid', axis=1)\
-                         .sort('Hits', ascending=False)\
-                         .head(5)
-
-    print '\nInstitutions to report due to high usage:', len(insti_high)
-    if len(insti_high) > 0:
-        print insti_high
-        print '\nHigh usage details:'
-        print offending
-
-    gen_report (offending, geo)
+    gen_report (groupname, offending, geo)
 
     return 0
 
@@ -118,20 +122,19 @@ def excess_failover_check (awdata, squids, site_rate_threshold):
     squid_alias_map = squids.set_index('Host')['Alias']
     offending['Host'][offending.IsSquid] = offending['Host'][offending.IsSquid].map(squid_alias_map)
 
-    offending.set_index( ['Institution', 'IsSquid'], inplace=True)
-    offending.sortlevel( 0, inplace=True)
-
     return non_squid_stats, insti_high, offending
 
-def gen_report (offending, geo):
+def gen_report (groupname, offending, geo):
 
     geolist_func = lambda s: s.encode(errors='ignore').replace(' ', '')
+    get_sites = lambda inst:', '.join( geo[ geo.Institution ==
+                                             geolist_func(inst)]['Site'].unique().tolist())
+    for_report = offending.copy()
+    for_report['Sites'] = for_report.Institution.apply(get_sites)
+    for_report.set_index(['Institution', 'IsSquid', 'Host'], inplace=True)
 
-    for institution in offending.index.levels[0]:
-        sites = geo[ geo.Institution == geolist_func(institution) ]['Site'].unique().tolist()
-
-        print institution, sites
-        print offending[institution]
+    print "Failover activity to", groupname
+    print for_report
 
 if __name__ == "__main__":
     sys.exit(main())

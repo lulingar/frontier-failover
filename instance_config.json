@@ -1,0 +1,28 @@
+{
+   "CMS Fermilab Frontier Backup Proxies": {
+      "rate_threshold": 2.77778, 
+      "instances": [
+         "fnal-cmsbproxy1", 
+         "fnal-cmsbproxy2"
+      ], 
+      "file_last_stats": "/tmp/last_stats_fnal-bps.csv"
+   }, 
+   "CMS CERN Frontier Backup Proxies": {
+      "rate_threshold": 2.77778, 
+      "instances": [
+         "cmsbpfrontier1", 
+         "cmsbpfrontier2"
+      ], 
+      "file_last_stats": "/tmp/last_stats_cern-bps.csv"
+   }, 
+   "CMS CERN Frontier Launchpads": {
+      "rate_threshold": 2.77778, 
+      "instances": [
+         "cmsfrontier1", 
+         "cmsfrontier2", 
+         "cmsfrontier3", 
+         "cmsfrontier4"
+      ], 
+      "file_last_stats": "/tmp/last_stats_launchpads.csv"
+   }
+}
