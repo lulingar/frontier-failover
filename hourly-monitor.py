@@ -14,7 +14,8 @@ import FailoverLib as fl
 
 def main():
 
-    geoip_database_file = "~llinares/work/private/frontier/geoip/GeoIPOrg.dat"
+    #geoip_database_file = "~llinares/work/private/frontier/geoip/GeoIPOrg.dat"
+    geoip_database_file = "~/scripts/geolist/GeoIPOrg.dat"
     groups_config_file = "instance_config.json"
 
     server_lists = "http://wlcg-squid-monitor.cern.ch/"
