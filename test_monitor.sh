@@ -13,6 +13,7 @@ while true; do
     now=$( date +%s )
 
     echo "New monitor starting at $(date)" >> ${log}
+    echo >> ${log}
     python $here/hourly-monitor.py >> ${log} 
     echo >> ${log}
 
@@ -20,6 +21,7 @@ while true; do
     new_now=$( date +%s )
     difference=$(( delta - new_now + now ))
     sleep ${difference} 
+    echo >> ${log}
 
 done
 

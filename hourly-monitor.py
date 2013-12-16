@@ -3,23 +3,19 @@
 import calendar
 import json
 import os
-import socket
 import sys
 
 from datetime import datetime
 
 import pandas as pd
-import pygeoip
+pd.options.display.width = 130
 
 import FailoverLib as fl
 
 def main():
 
-    # 10k queries per hour
-    #site_rate_threshold = 10e3/3600
-
     geoip_database_file = "~llinares/work/private/frontier/geoip/GeoIPOrg.dat"
-    instances_config_file = "instance_config.json"
+    groups_config_file = "instance_config.json"
 
     server_lists = "http://wlcg-squid-monitor.cern.ch/"
     geolist_file = server_lists + "geolist.txt"
@@ -30,10 +26,10 @@ def main():
     squids = fl.build_squids_list(geo, MO_view)
     geoip = fl.GeoIPWrapper( os.path.expanduser( geoip_database_file))
 
-    instance_config = json.load( open( instances_config_file))
-    json.dump(instance_config, open(instances_config_file, 'w'), indent=3)
+    groups = json.load( open( groups_config_file))
+    json.dump(groups, open(groups_config_file, 'w'), indent=3)
 
-    for machine_group_name, machine_group_conf in instance_config.items():
+    for machine_group_name, machine_group_conf in groups.items():
         analyze_failovers_to_group( machine_group_name, machine_group_conf, geo, squids, geoip)
 
     return 0
@@ -51,13 +47,17 @@ def analyze_failovers_to_group (groupname, groupconf, geo, squids, geoip):
     last_timestamp, last_awdata = load_last_data(last_stats_file)
     save_last_data(last_stats_file, awdata, now)
 
-    if not last_awdata:
+    if last_awdata is None:
         return 1
 
-    awdata = compute_traffic_delta( awdata, last_awdata, now, last_timestamp)
-    awdata.insert( 0, 'IsSquid', awdata.index.isin(squids.Host) )
-    awdata = add_institutions( awdata, geoip.get_isp)
-    non_squid_stats, insti_high, offending = excess_failover_check( awdata, squids, site_rate_threshold)
+    if len(awdata) > 0:
+        awdata = compute_traffic_delta( awdata, last_awdata, now, last_timestamp)
+        awdata.insert( 0, 'IsSquid', awdata.index.isin(squids.Host) )
+        awdata = add_institutions( awdata, geoip.get_isp)
+        non_squid_stats, insti_high, offending = excess_failover_check( awdata, squids, site_rate_threshold)
+
+    else:
+        offending = None
 
     gen_report (groupname, offending, geo)
 
@@ -96,7 +96,7 @@ def compute_traffic_delta (now_stats, last_stats, now_timestamp, last_timestamp)
     delta_h = (now_stats['Hits'] - last_stats['Hits']).fillna(now_stats['Hits'])
     hits_column_idx = now_stats.columns.tolist().index('Hits')
     change = delta_h / float(delta_t)
-    table.insert( hits_column_idx + 1, 'Change', change)
+    table.insert( hits_column_idx + 1, 'DHits_Dt', change)
     table = table.dropna()
 
     return table
@@ -115,8 +115,8 @@ def excess_failover_check (awdata, squids, site_rate_threshold):
     non_squid_stats = awdata[ ~awdata.IsSquid ]
 
     by_inst = non_squid_stats.groupby('Institution')
-    insti_traffic = by_inst[['Change', 'Bandwidth']].sum()
-    insti_high = insti_traffic[ insti_traffic.Change > site_rate_threshold ]
+    insti_traffic = by_inst[['DHits_Dt', 'Bandwidth']].sum()
+    insti_high = insti_traffic[ insti_traffic.DHits_Dt > site_rate_threshold ]
 
     offending = awdata[ awdata.Institution.isin(insti_high.index) ].reset_index()
     squid_alias_map = squids.set_index('Host')['Alias']
@@ -126,16 +126,24 @@ def excess_failover_check (awdata, squids, site_rate_threshold):
 
 def gen_report (groupname, offending, geo):
 
+    print "Failover activity to %s:" % groupname
+
+    if offending is None:
+        print " None.\n"
+        return
+
     geolist_func = lambda s: s.encode(errors='ignore').replace(' ', '')
     get_sites = lambda inst:', '.join( geo[ geo.Institution ==
                                              geolist_func(inst)]['Site'].unique().tolist())
     for_report = offending.copy()
     for_report['Sites'] = for_report.Institution.apply(get_sites)
     for_report.set_index(['Institution', 'IsSquid', 'Host'], inplace=True)
+    for_report.sortlevel(0, inplace=True)
 
-    print "Failover activity to", groupname
-    print for_report
+    if len(for_report) > 0:
+        print for_report, "\n"
+    else:
+        print " None.\n"
 
 if __name__ == "__main__":
     sys.exit(main())
-
