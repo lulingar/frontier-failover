@@ -133,9 +133,9 @@ def gen_report (groupname, offending, geo):
         print " None.\n"
         return
 
-    geolist_func = lambda s: s.encode(errors='ignore').replace(' ', '')
-    get_sites = lambda inst:', '.join( geo[ geo.Institution ==
-                                             geolist_func(inst)]['Site'].unique().tolist())
+    #geolist_func = lambda s: s.encode(errors='ignore').replace(' ', '')
+    geolist_func = lambda s: s.encode('utf-8', 'ignore').replace(' ', '')
+    get_sites = lambda inst:', '.join( geo[ geo.Institution == geolist_func(inst) ]['Site'].unique().tolist())
     for_report = offending.copy()
     for_report['Sites'] = for_report.Institution.apply(get_sites)
     for_report.set_index(['Institution', 'IsSquid', 'Host'], inplace=True)
