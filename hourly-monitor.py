@@ -9,6 +9,7 @@ from datetime import datetime
 
 import pandas as pd
 pd.options.display.width = 130
+pd.options.display.max_rows = 100
 
 import FailoverLib as fl
 

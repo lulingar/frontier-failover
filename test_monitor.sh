@@ -2,7 +2,7 @@
 
 here=$( cd $(dirname $0); pwd -P )
 log="/tmp/new_mon.log"
-delta=300
+delta=1200
 
 echo "My PID is $$" > ${log}
 python --version 2>> ${log}
