@@ -1,4 +1,4 @@
-#! /usr/bin/env python
+#!/usr/bin/env python -W ignore::DeprecationWarning
 
 import calendar
 import json
@@ -15,7 +15,6 @@ import FailoverLib as fl
 
 def main():
 
-    #geoip_database_file = "~llinares/work/private/frontier/geoip/GeoIPOrg.dat"
     geoip_database_file = "~/scripts/geolist/GeoIPOrg.dat"
     groups_config_file = "instance_config.json"
 
@@ -56,12 +55,12 @@ def analyze_failovers_to_group (groupname, groupconf, geo, squids, geoip):
         awdata = compute_traffic_delta( awdata, last_awdata, now, last_timestamp)
         awdata.insert( 0, 'IsSquid', awdata.index.isin(squids.Host) )
         awdata = add_institutions( awdata, geoip.get_isp)
-        non_squid_stats, insti_high, offending = excess_failover_check( awdata, squids, site_rate_threshold)
+        offending, totals_high = excess_failover_check( awdata, squids, site_rate_threshold)
 
     else:
         offending = None
 
-    gen_report (groupname, offending, geo)
+    gen_report (groupname, geo, offending, totals_high)
 
     return 0
 
@@ -98,7 +97,7 @@ def compute_traffic_delta (now_stats, last_stats, now_timestamp, last_timestamp)
     delta_h = (now_stats['Hits'] - last_stats['Hits']).fillna(now_stats['Hits'])
     hits_column_idx = now_stats.columns.tolist().index('Hits')
     change = delta_h / float(delta_t)
-    table.insert( hits_column_idx + 1, 'DHits_Dt', change)
+    table.insert( hits_column_idx + 1, 'HitsRate', change)
     table = table.dropna()
 
     return table
@@ -114,19 +113,19 @@ def add_institutions (awstats_dataframe, isp_func):
 
 def excess_failover_check (awdata, squids, site_rate_threshold):
 
-    non_squid_stats = awdata[ ~awdata.IsSquid ]
+    non_squid_stats = awdata[ ~awdata['IsSquid'] ]
 
-    by_inst = non_squid_stats.groupby('Institution')
-    insti_traffic = by_inst[['DHits_Dt', 'Bandwidth']].sum()
-    insti_high = insti_traffic[ insti_traffic.DHits_Dt > site_rate_threshold ]
+    by_institution = non_squid_stats.groupby('Institution')
+    totals = by_institution[['HitsRate', 'Bandwidth']].sum()
+    totals_high = totals[ totals['HitsRate'] > site_rate_threshold ]
 
-    offending = awdata[ awdata.Institution.isin(insti_high.index) ].reset_index()
+    offending = awdata[ awdata['Institution'].isin(totals_high.index) ].reset_index()
     squid_alias_map = squids.set_index('Host')['Alias']
-    offending['Host'][offending.IsSquid] = offending['Host'][offending.IsSquid].map(squid_alias_map)
+    offending['Host'][offending['IsSquid']] = offending['Host'][offending['IsSquid']].map(squid_alias_map)
 
-    return non_squid_stats, insti_high, offending
+    return offending, totals_high
 
-def gen_report (groupname, offending, geo):
+def gen_report (groupname, geo, offending, totals_high):
 
     print "Failover activity to %s:" % groupname
 
@@ -134,12 +133,11 @@ def gen_report (groupname, offending, geo):
         print " None.\n"
         return
 
-    #geolist_func = lambda s: s.encode(errors='ignore').replace(' ', '')
     geolist_func = lambda s: s.encode('utf-8', 'ignore').replace(' ', '')
-    get_sites = lambda inst:', '.join( geo[ geo.Institution == geolist_func(inst) ]['Site'].unique().tolist())
+    get_sites = lambda inst: ', '.join( geo[ geo.Institution == geolist_func(inst) ]['Site'].unique().tolist())
     for_report = offending.copy()
     for_report['Sites'] = for_report.Institution.apply(get_sites)
-    for_report.set_index(['Institution', 'IsSquid', 'Host'], inplace=True)
+    for_report.set_index(['Institution', 'IsSquid'], inplace=True)
     for_report.sortlevel(0, inplace=True)
 
     if len(for_report) > 0:
