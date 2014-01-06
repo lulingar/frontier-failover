@@ -170,7 +170,7 @@ def update_record (record_file, new_data, now, record_span):
     else:
         records = None
 
-    to_add = new_data.drop('Institution')
+    to_add = new_data.drop('Institution', axis=1)
     to_add.insert(0, time_field, now_secs)
 
     if records:
