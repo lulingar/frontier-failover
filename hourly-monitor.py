@@ -16,7 +16,7 @@ import FailoverLib as fl
 def main():
 
     geoip_database_file = "~/scripts/geolist/GeoIPOrg.dat"
-    groups_config_file = "instance_config.json"
+    config_file = "instance_config.json"
 
     server_lists = "http://wlcg-squid-monitor.cern.ch/"
     geolist_file = server_lists + "geolist.txt"
@@ -27,19 +27,24 @@ def main():
     squids = fl.build_squids_list(geo, MO_view)
     geoip = fl.GeoIPWrapper( os.path.expanduser( geoip_database_file))
 
-    groups = json.load( open( groups_config_file))
-    json.dump(groups, open(groups_config_file, 'w'), indent=3)
+    config = json.load( open(config_file))
+    json.dump(config, open(config_file, 'w'), indent=3)
 
-    for machine_group_name, machine_group_conf in groups.items():
-        analyze_failovers_to_group( machine_group_name, machine_group_conf, geo, squids, geoip)
+    groups = config['groups'] 
+    for machine_group_name in groups.keys():
+        analyze_failovers_to_group( config, machine_group_name, geo, squids, geoip)
 
     return 0
 
-def analyze_failovers_to_group (groupname, groupconf, geo, squids, geoip):
+def analyze_failovers_to_group (config, groupname, geo, squids, geoip):
+
+    groupconf = config['groups'][groupname]
 
     instances = groupconf['instances']
     last_stats_file = groupconf['file_last_stats']
+    record_file  = groupconf['file_record']
     site_rate_threshold = groupconf['rate_threshold']   # Unit: Queries/sec
+    record_span = config['history']['span']
 
     now = datetime.utcnow()
 
@@ -61,6 +66,7 @@ def analyze_failovers_to_group (groupname, groupconf, geo, squids, geoip):
         offending = None
 
     gen_report (groupname, geo, offending, totals_high)
+    update_record (record_file, offending, now, record_span)
 
     return 0
 
@@ -95,8 +101,9 @@ def compute_traffic_delta (now_stats, last_stats, now_timestamp, last_timestamp)
     table = now_stats.copy()
     delta_t = datetime_to_UTC_epoch(now_timestamp) - datetime_to_UTC_epoch(last_timestamp)
     delta_h = (now_stats['Hits'] - last_stats['Hits']).fillna(now_stats['Hits'])
-    hits_column_idx = now_stats.columns.tolist().index('Hits')
     change = delta_h / float(delta_t)
+
+    hits_column_idx = now_stats.columns.tolist().index('Hits')
     table.insert( hits_column_idx + 1, 'HitsRate', change)
     table = table.dropna()
 
@@ -134,16 +141,41 @@ def gen_report (groupname, geo, offending, totals_high):
         return
 
     geolist_func = lambda s: s.encode('utf-8', 'ignore').replace(' ', '')
-    get_sites = lambda inst: ', '.join( geo[ geo.Institution == geolist_func(inst) ]['Site'].unique().tolist())
+    get_sites = lambda inst: ', '.join( geo[ geo['Institution'] == geolist_func(inst) ]['Site'].unique().tolist() )
     for_report = offending.copy()
-    for_report['Sites'] = for_report.Institution.apply(get_sites)
-    for_report.set_index(['Institution', 'IsSquid'], inplace=True)
-    for_report.sortlevel(0, inplace=True)
 
     if len(for_report) > 0:
-        print for_report, "\n"
+        for_report['Sites'] = for_report.Institution.apply(get_sites)
+        
+        print for_report.set_index(['Institution', 'IsSquid']).sortlevel(0), "\n"
+
     else:
         print " None.\n"
+
+def update_record (record_file, new_data, now, record_span):
+
+    time_field = 'Timestamp'
+
+    if os.path.exists(record_file):
+        records = pd.read_csv(record_file)
+	old_cutoff = now_secs - record_span*3600
+        records = records[ records[time_field] >= old_cutoff ]
+
+    else:
+        records = None
+
+    now_secs = datetime_to_UTC_epoch(now)
+
+    to_add = new_data.drop('Institution')
+    to_add.insert(0, time_field, now_secs)
+
+    if records:
+        records = records.concat(to_add)
+    else:
+        records = to_add
+
+    records.to_csv(record_file, index=False)
+    
 
 if __name__ == "__main__":
     sys.exit(main())
