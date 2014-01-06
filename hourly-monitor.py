@@ -64,6 +64,7 @@ def analyze_failovers_to_group (config, groupname, geo, squids, geoip):
 
     else:
         offending = None
+        totals_high = None
 
     gen_report (groupname, geo, offending, totals_high)
     update_record (record_file, offending, now, record_span)

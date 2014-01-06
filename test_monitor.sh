@@ -14,7 +14,7 @@ while true; do
 
     echo "New monitor starting at $(date)" >> ${log}
     echo >> ${log}
-    python $here/hourly-monitor.py >> ${log} 
+    python $here/hourly-monitor.py >> ${log} 2>&1
     echo >> ${log}
 
     echo "Running again in ${delta} seconds..." >> ${log}
