@@ -157,6 +157,8 @@ def update_record (record_file, new_data, now, record_span):
 
     time_field = 'Timestamp'
 
+    now_secs = datetime_to_UTC_epoch(now)
+
     if os.path.exists(record_file):
         records = pd.read_csv(record_file)
 	old_cutoff = now_secs - record_span*3600
@@ -165,17 +167,15 @@ def update_record (record_file, new_data, now, record_span):
     else:
         records = None
 
-    now_secs = datetime_to_UTC_epoch(now)
-
     to_add = new_data.drop('Institution')
     to_add.insert(0, time_field, now_secs)
 
     if records:
-        records = records.concat(to_add)
+        update = pd.concat([records, to_add])
     else:
-        records = to_add
+        update = to_add
 
-    records.to_csv(record_file, index=False)
+    update.to_csv(record_file, index=False)
     
 
 if __name__ == "__main__":
