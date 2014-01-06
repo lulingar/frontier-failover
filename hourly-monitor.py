@@ -159,6 +159,9 @@ def update_record (record_file, new_data, now, record_span):
 
     now_secs = datetime_to_UTC_epoch(now)
 
+    if new_data is None: 
+        return
+
     if os.path.exists(record_file):
         records = pd.read_csv(record_file)
 	old_cutoff = now_secs - record_span*3600
