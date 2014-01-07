@@ -146,7 +146,7 @@ def gen_report (groupname, geo, offending, totals_high):
     for_report = offending.copy()
 
     if len(for_report) > 0:
-        for_report['Sites'] = for_report.Institution.apply(get_sites)
+        for_report['Sites'] = for_report['Institution'].apply(get_sites)
         print for_report.set_index(['Institution', 'IsSquid', 'Host']).sortlevel(0), "\n"
 
     else:
@@ -169,7 +169,9 @@ def update_record (record_file, new_data, now, record_span):
     else:
         records = None
 
-    to_add = new_data.drop('Institution', axis=1)
+    to_add = new_data.copy()
+    to_add['Sites'] = to_add['Institution'].apply(get_sites)
+    to_add = to_add.drop('Institution', axis=1)
     to_add.insert(0, time_field, now_secs)
 
     if records:

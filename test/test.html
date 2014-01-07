@@ -11,10 +11,12 @@
 </head>
 
 <body>
+
 <script type="text/javascript" src="js/d3.js"></script>
 <script type="text/javascript" src="js/crossfilter.js"></script>
 <script type="text/javascript" src="js/dc.js"></script>
 <script type="text/javascript" src="js/myutils.js"></script>
+<script type="text/javascript" src="js/jquery.min.js"></script>
 
 <div class="container">
     <h1>Multi-Line Chart in dc.js</h1>
@@ -54,83 +56,89 @@
 </div> <!-- end container -->
 
 <script type="text/javascript">
-// charts
+
 var time_chart = seriesBarChart("#time-chart"),
-    temp_chart = dc.barChart("#temp-chart"),
-    width = temp_chart.root()[0][0].parentElement.clientWidth,
-    period = minuteBunch(10);
-    periodRange = period.range;
+    width = time_chart.root()[0][0].parentElement.clientWidth,
+    dataset, config, remainingFiles = 2;
 
-d3.csv("test.csv", function (dataset) {
-
-    dataset.forEach(function (d) {
-        d.time = new Date(+d.time * 1000);
-        d.temperature = +d.temperature;
-        d.count = +d.count;
+$.getJSON("config.json", function(data) { 
+        config = data; 
+        if (!--remainingFiles) setup_chart();
     });
 
-var addC = function(p, d){ return p + d.count;},
-    remC = function(p, d){ return p - d.count;},
-    addT = function(p, d){ return p + d.temperature;},
-    remT = function(p, d){ return p - d.temperature;},
-    ini = function(){ return 0;},
-    ndx = crossfilter(dataset),
-    all = ndx.groupAll().reduce(addC, remC, ini),
-    fields = ndx.dimension(function(d){ return d.field;}).group(),
-    time_field = ndx.dimension(function(d) { return [d.time, d.field];}),
-    time_fields = time_field.group().reduce(addT, remT, ini),
-    temperature = ndx.dimension(function(d){return d.temperature;}),
-    temperatures = temperature.group().reduce(addC, remC, ini);
-    extent = d3.extent(dataset, function(d){return d.time;}),
-    date_format = d3.time.format("%b %d %I:%M %p"),
+d3.csv("test.csv", function(data) { 
+        dataset = data; 
+        if (!--remainingFiles) setup_chart();
+    });
 
-d3.select("#date-start")
-    .attr("datetime", extent[0])
-    .text(date_format(extent[0]));
-d3.select("#date-end")
-    .attr("datetime", extent[1])
-    .text(date_format(extent[1]));
+function setup_chart() {
 
-dc.dataCount("#data-count")
-// Since the number of records (returned by .size()) isn't the same as the number
-// of data points we're aggregating, supply a size-like object that returns the
-// total number of data points represented.
-    .dimension({size: function(){return dataset.reduce(addC, 0);}})
-    .group(all);
+    var period = config.history.period,
+        periodObj = minuteBunch(period),
+        periodRange = periodObj.range,
+        now = new Date(),
+        this_hour = periodObj(now).getTime(),
+        extent_span = 3.6e6 * config.history.span,
+        extent = [new Date(this_hour - extent_span), new Date(this_hour)];
 
-time_chart
-    .width(0.6 * width)
-    .height(400)
-    .margins({top: 10, right: 160, bottom: 30, left: 30})
-    .dimension(time_field)
-    .group(time_fields)
-    .seriesAccessor(function(d) { return d.key[1]; })
-    .keyAccessor(function(d) {return d.key[0];})
-    .elasticY(true)
-    .elasticX(true)
-    .xAxisLabel("Observation Time")
-    .yAxisLabel("Temperature")
-    .x(d3.time.scale().domain(extent))
-    .xUnits(periodRange)
-    .renderHorizontalGridLines(true)
-    .legend(dc.legend().x(0.6*width-160).y(0).itemHeight(13).gap(5))
-    .seriesSort(d3.ascending)
-    .brushOn(false);
+    dataset.forEach( function(d) {
+        d.Timestamp = new Date(+d.Timestamp * 1000);
+        d.Hits = +d.Hits;
+        d.HitsRate = +d.HitsRate;
+        d.Bandwidth = +d.Bandwidth;
+        d.IsSquid = (d.IsSquid == "True");
+    });
 
-temp_chart
-    .width(0.4 * width)
-    .dimension(temperature)
-    .x(d3.scale.linear().domain([0, 100]))
-    .xAxisLabel("Temperature °F")
-    .elasticX(true)
-    .height(400)
-    .group(temperatures)
-    .elasticY(true)
-    .yAxisLabel("Count")
-    .renderHorizontalGridLines(true);
+    //TODO: replace temperature and field with adecuate fields
+    var addH = function(p, d){ return p + d.Hits;},
+	remH = function(p, d){ return p - d.Hits;},
+	addR = function(p, d){ return p + d.HitsRate;},
+	remR = function(p, d){ return p - d.HitsRate;},
+	ini = function(){ return 0;},
+	ndx = crossfilter(dataset),
+	all = ndx.groupAll().reduce(addH, remH, ini),
+	fields = ndx.dimension(function(d){ return d.field;}).group(),
+	time_field = ndx.dimension(function(d) { return [d.Timestamp, d.field];}),
+	time_fields = time_field.group().reduce(addH, remH, ini),
+	temperature = ndx.dimension(function(d){return d.temperature;}),
+	temperatures = temperature.group().reduce(addH, remC, ini),
+	date_format = d3.time.format("%b %d %I:%M %p");
 
-dc.renderAll();
-});
+    d3.select("#date-start")
+	.attr("datetime", extent[0])
+	.text(date_format(extent[0]));
+    d3.select("#date-end")
+	.attr("datetime", extent[1])
+	.text(date_format(extent[1]));
+
+    dc.dataCount("#data-count")
+    // Since the number of records (returned by .size()) isn't the same as the number
+    // of data points we're aggregating, supply a size-like object that returns the
+    // total number of data points represented.
+	.dimension({size: function(){return dataset.reduce(addC, 0);}})
+	.group(all);
+
+    time_chart
+	.width(0.85 * width)
+	.height(400)
+	.margins({top: 10, right: 160, bottom: 30, left: 30})
+	.dimension(time_field)
+	.group(time_fields)
+	.seriesAccessor(function(d) { return d.key[1]; })
+	.keyAccessor(function(d) {return d.key[0];})
+	.elasticY(true)
+	.elasticX(true)
+	.xAxisLabel("Observation Time")
+	.yAxisLabel("Temperature")
+	.x(d3.time.scale().domain(extent))
+	.xUnits(periodRange)
+	.renderHorizontalGridLines(true)
+	.legend(dc.legend().x(0.6*width-160).y(0).itemHeight(13).gap(5))
+	.seriesSort(d3.ascending)
+	.brushOn(false);
+
+    dc.renderAll();
+}
 
 </script>
 </body>
