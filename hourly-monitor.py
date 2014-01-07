@@ -147,8 +147,7 @@ def gen_report (groupname, geo, offending, totals_high):
 
     if len(for_report) > 0:
         for_report['Sites'] = for_report.Institution.apply(get_sites)
-        
-        print for_report.set_index(['Institution', 'IsSquid']).sortlevel(0), "\n"
+        print for_report.set_index(['Institution', 'IsSquid', 'Host']).sortlevel(0), "\n"
 
     else:
         print " None.\n"
