@@ -1,3 +1,12 @@
-test/css
-test/js
 *.swp
+./test/config.json
+./test/js/dc.js
+./test/js/crossfilter.js
+./test/js/env-data.js
+./test/js/dc.js.map
+./test/css/bootstrap-responsive.css
+./test/css/dc.css
+./test/css/bootstrap-responsive.min.css
+./test/css/colorbrewer.css
+./test/css/bootstrap.min.css
+./test/css/bootstrap.css
