@@ -110,7 +110,6 @@ def compute_traffic_delta (now_stats, last_stats, now_timestamp, last_timestamp)
     table = now_stats.copy()
     table.insert( hits_column_idx + 1, 'HitsRate', change)
     table = table.dropna()
-    print hits_column_idx, table
 
     return table
 
