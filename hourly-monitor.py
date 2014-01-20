@@ -102,14 +102,15 @@ def datetime_to_UTC_epoch (dt):
 
 def compute_traffic_delta (now_stats, last_stats, now_timestamp, last_timestamp):
 
-    table = now_stats.copy()
     delta_t = datetime_to_UTC_epoch(now_timestamp) - datetime_to_UTC_epoch(last_timestamp)
-    delta_h = (now_stats['Hits'] - last_stats['Hits']).fillna(now_stats['Hits'])
+    delta_h = (now_stats['Hits'] - last_stats['Hits']) #.fillna(now_stats['Hits'])
     change = delta_h / float(delta_t)
 
     hits_column_idx = now_stats.columns.tolist().index('Hits')
+    table = now_stats.copy()
     table.insert( hits_column_idx + 1, 'HitsRate', change)
     table = table.dropna()
+    print hits_column_idx, table
 
     return table
 
