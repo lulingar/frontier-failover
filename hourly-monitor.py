@@ -38,13 +38,13 @@ def main():
 
 def analyze_failovers_to_group (config, groupname, geo, squids, geoip):
 
+    record_span = config['history']['span']
     groupconf = config['groups'][groupname]
 
     instances = groupconf['instances']
     last_stats_file = groupconf['file_last_stats']
     record_file  = groupconf['file_record']
     site_rate_threshold = groupconf['rate_threshold']   # Unit: Queries/sec
-    record_span = config['history']['span']
 
     now = datetime.utcnow()
 
@@ -66,8 +66,7 @@ def analyze_failovers_to_group (config, groupname, geo, squids, geoip):
         offending = None
         totals_high = None
 
-    geolist_func = lambda s: s.encode('utf-8', 'ignore').replace(' ', '')
-    get_sites = lambda inst: ', '.join( geo[ geo['Institution'] == geolist_func(inst) ]['Site'].unique().tolist() )
+    get_sites = lambda inst: sites_from_institution(inst, geo)
 
     gen_report (groupname, geo, offending, totals_high, get_sites)
     update_record (record_file, offending, now, record_span, get_sites)
@@ -103,15 +102,11 @@ def datetime_to_UTC_epoch (dt):
 def compute_traffic_delta (now_stats, last_stats, now_timestamp, last_timestamp):
 
     delta_t = datetime_to_UTC_epoch(now_timestamp) - datetime_to_UTC_epoch(last_timestamp)
-    delta_h = (now_stats['Hits'] - last_stats['Hits']) #.fillna(now_stats['Hits'])
-    change = delta_h / float(delta_t)
 
-    hits_column_idx = now_stats.columns.tolist().index('Hits')
     table = now_stats.copy()
-    table.insert( hits_column_idx + 1, 'HitsRate', change)
-    table = table.dropna()
+    table['HitsRate'] = ( table['Hits'] - last_stats['Hits'] ) / float(delta_t)
 
-    return table
+    return table.dropna()
 
 def add_institutions (awstats_dataframe, isp_func):
 
@@ -182,6 +177,18 @@ def update_record (record_file, new_data, now, record_span, sites_function):
 
     update.to_csv(record_file, index=False)
 
+def sites_from_institution (institution, geo):
+
+    geolist_name_func = lambda s: s.encode('utf-8', 'ignore').replace(' ', '')
+
+    sites = geo[ geo['Institution'] == geolist_name_func(institution) ]['Site'].unique().tolist()
+
+    if not sites:
+        site_list = institution
+    else:
+        site_list = ', '.join(sites)
+
+    return site_list
 
 if __name__ == "__main__":
     sys.exit(main())
