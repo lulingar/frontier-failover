@@ -1,8 +1,5 @@
 #! /usr/bin/env python
 
-import copy
-import itertools as it
-import functools as fn
 import re
 import socket
 import urllib2
@@ -21,7 +18,7 @@ def to_bytes (sz):
     value, fac = sz.strip().split()
     factor = factors[ fac.lower() ]
 
-    return int( round( float(value) * (2**factor) ))
+    return int( round( float(value) * (2 ** factor) ))
 
 def load_awstats_data (machine, day=None):
 
@@ -212,8 +209,9 @@ class GeoIPWrapper(object):
     def get_isp (self, host):
 
         try:
-            isp = self.geoip.org_by_name(host)
-
+            isp = self.geoip.org_by_name(host)\
+                      .encode('ascii', 'ignore')\
+                      .replace(' ', '')  # Spaces are removed in the geolist
         except socket.gaierror:
             isp = 'Unknown'
 

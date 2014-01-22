@@ -56,8 +56,9 @@ def analyze_failovers_to_group (config, groupname, geo, squids, geoip):
     if last_awdata is None:
         return 1
 
+    awdata = compute_traffic_delta( awdata, last_awdata, now, last_timestamp)
+
     if len(awdata) > 0:
-        awdata = compute_traffic_delta( awdata, last_awdata, now, last_timestamp)
         awdata.insert( 0, 'IsSquid', awdata.index.isin(squids.Host) )
         awdata = add_institutions( awdata, geoip.get_isp)
         offending, totals_high = excess_failover_check( awdata, squids, site_rate_threshold)
