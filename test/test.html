@@ -86,8 +86,8 @@ q.await( function(error, config, dataset) {
 
     time_chart
       .width(0.85 * width)
-      .height(400)
-      .margins({top: 10, right: 160, bottom: 30, left: 30})
+      .height(500)
+      .margins({top: 100, right: 30, bottom: 30, left: 60})
       .dimension(time_site)
       .group(time_sites)
       .seriesAccessor(function(d) { return d.key[1]; })
@@ -99,7 +99,10 @@ q.await( function(error, config, dataset) {
       .x(d3.time.scale().domain(extent))
       .xUnits(periodRange)
       .renderHorizontalGridLines(true)
-      .legend(dc.legend().x(0.6*width-160).y(0).itemHeight(13).gap(5))
+      .legend( dc.legend()
+              .x(20).y(10)
+              .itemHeight(13).itemWidth(150)
+              .gap(5) )
       .seriesSort(d3.ascending)
       .brushOn(false);
 
