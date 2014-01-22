@@ -2,7 +2,9 @@
 
 here=$( cd $(dirname $0); pwd -P )
 log="/tmp/new_mon.log"
-delta=1200
+delta_minutes=20
+
+delta=$(( delta_minutes*60 ))
 
 echo "My PID is $$" > ${log}
 python --version 2>> ${log}
@@ -14,10 +16,10 @@ while true; do
 
     echo "New monitor starting at $(date)" >> ${log}
     echo >> ${log}
-    python $here/hourly-monitor.py >> ${log} 2>&1
+    python -W ignore::DeprecationWarning $here/hourly-monitor.py >> ${log} 2>&1
     echo >> ${log}
 
-    echo "Running again in ${delta} seconds..." >> ${log}
+    echo "Running again in ${delta_minutes} minutes..." >> ${log}
     new_now=$( date +%s )
     difference=$(( delta - new_now + now ))
     sleep ${difference} 

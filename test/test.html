@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <title>dc.js multi-line chart attempt</title>
+    <title>Frontier Failover History</title>
 
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -12,39 +12,23 @@
 
 <body>
 
+<script type="text/javascript" src="js/queue.v1.min.js"></script>
 <script type="text/javascript" src="js/d3.js"></script>
 <script type="text/javascript" src="js/crossfilter.js"></script>
 <script type="text/javascript" src="js/dc.js"></script>
 <script type="text/javascript" src="js/myutils.js"></script>
-<script type="text/javascript" src="js/jquery.min.js"></script>
 
 <div class="container">
-    <h1>Multi-Line Chart in dc.js</h1>
-
-    <div class="row">
-        <div id="data-count" class="span12">
-            Showing <span class="filter-count"/></span> of <span class="total-count"></span> data points
-            | <a href="javascript:dc.filterAll(); dc.renderAll();">Reset All</a>
-        </div>
-    </div>
+    <h1>New Extended Frontier Failover history</h1>
 
     <div class="row">
         <div id="time-chart" class="dc-chart span6">
-            <strong>Time</strong>
+            <strong>Time:</strong>
             <small class="text-muted">
             <time id="date-start" datetime="2012-08-26 20:09-0700">8:09pm on August 26th, 2012</time> &ndash;
             <time id="date-end" datetime="2012-08-26 20:09-0700">8:09pm on August 26th, 2012</time>
             </small>
             <a class="reset" href="javascript:time_chart.filterAll(); dc.redrawAll();" style="display: none;">
-                reset
-            </a>
-
-            <div class="clearfix"></div>
-        </div>
-
-        <div id="temp-chart" class="dc-chart span6">
-            <strong>Temperature</strong>
-            <a class="reset" href="javascript:temp_chart.filterAll(); dc.redrawAll();" style="display: none;">
                 reset
             </a>
 
@@ -58,20 +42,12 @@
 <script type="text/javascript">
 
 var time_chart = seriesBarChart("#time-chart"),
-    width = time_chart.root()[0][0].parentElement.clientWidth,
-    dataset, config, remainingFiles = 2;
+    width = time_chart.root()[0][0].parentElement.clientWidth;
 
-$.getJSON("config.json", function(data) { 
-        config = data; 
-        if (!--remainingFiles) setup_chart();
-    });
+var q = queue().defer(d3.json, "config.json")
+               .defer(d3.csv, "test.csv");
 
-d3.csv("test.csv", function(data) { 
-        dataset = data; 
-        if (!--remainingFiles) setup_chart();
-    });
-
-function setup_chart() {
+q.await( function(error, config, dataset) {
 
     var period = config.history.period,
         periodObj = minuteBunch(period),
@@ -89,56 +65,46 @@ function setup_chart() {
         d.IsSquid = (d.IsSquid == "True");
     });
 
-    //TODO: replace temperature and field with adecuate fields
-    var addH = function(p, d){ return p + d.Hits;},
-	remH = function(p, d){ return p - d.Hits;},
-	addR = function(p, d){ return p + d.HitsRate;},
-	remR = function(p, d){ return p - d.HitsRate;},
-	ini = function(){ return 0;},
-	ndx = crossfilter(dataset),
-	all = ndx.groupAll().reduce(addH, remH, ini),
-	fields = ndx.dimension(function(d){ return d.field;}).group(),
-	time_field = ndx.dimension(function(d) { return [d.Timestamp, d.field];}),
-	time_fields = time_field.group().reduce(addH, remH, ini),
-	temperature = ndx.dimension(function(d){return d.temperature;}),
-	temperatures = temperature.group().reduce(addH, remC, ini),
-	date_format = d3.time.format("%b %d %I:%M %p");
+    var addH = function(p, d) { return p + d.Hits; },
+        remH = function(p, d) { return p - d.Hits; },
+        addR = function(p, d) { return p + d.HitsRate; },
+        remR = function(p, d) { return p - d.HitsRate; },
+        ini = function() { return 0; },
+        ndx = crossfilter(dataset),
+        time_site = ndx.dimension(function(d) { return [d.Timestamp, d.Sites]; }),
+        time_sites = time_site.group().reduce(addH, remH, ini),
+        hits = ndx.dimension(function(d){ return d.Hits; }),
+        hitsCounts = hits.group().reduce(addH, remH, ini),
+        date_format = d3.time.format("%b %d, %Y %I:%M %p");
 
     d3.select("#date-start")
-	.attr("datetime", extent[0])
-	.text(date_format(extent[0]));
+      .attr("datetime", extent[0])
+      .text(date_format(extent[0]));
     d3.select("#date-end")
-	.attr("datetime", extent[1])
-	.text(date_format(extent[1]));
-
-    dc.dataCount("#data-count")
-    // Since the number of records (returned by .size()) isn't the same as the number
-    // of data points we're aggregating, supply a size-like object that returns the
-    // total number of data points represented.
-	.dimension({size: function(){return dataset.reduce(addC, 0);}})
-	.group(all);
+      .attr("datetime", extent[1])
+      .text(date_format(extent[1]));
 
     time_chart
-	.width(0.85 * width)
-	.height(400)
-	.margins({top: 10, right: 160, bottom: 30, left: 30})
-	.dimension(time_field)
-	.group(time_fields)
-	.seriesAccessor(function(d) { return d.key[1]; })
-	.keyAccessor(function(d) {return d.key[0];})
-	.elasticY(true)
-	.elasticX(true)
-	.xAxisLabel("Observation Time")
-	.yAxisLabel("Temperature")
-	.x(d3.time.scale().domain(extent))
-	.xUnits(periodRange)
-	.renderHorizontalGridLines(true)
-	.legend(dc.legend().x(0.6*width-160).y(0).itemHeight(13).gap(5))
-	.seriesSort(d3.ascending)
-	.brushOn(false);
+      .width(0.85 * width)
+      .height(400)
+      .margins({top: 10, right: 160, bottom: 30, left: 30})
+      .dimension(time_site)
+      .group(time_sites)
+      .seriesAccessor(function(d) { return d.key[1]; })
+      .keyAccessor(function(d) {return d.key[0];})
+      .elasticY(true)
+      .elasticX(true)
+      .xAxisLabel("Time")
+      .yAxisLabel("Hits")
+      .x(d3.time.scale().domain(extent))
+      .xUnits(periodRange)
+      .renderHorizontalGridLines(true)
+      .legend(dc.legend().x(0.6*width-160).y(0).itemHeight(13).gap(5))
+      .seriesSort(d3.ascending)
+      .brushOn(false);
 
     dc.renderAll();
-}
+});
 
 </script>
 </body>
