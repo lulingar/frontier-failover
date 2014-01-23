@@ -151,7 +151,8 @@ def gen_report (offending, groupname, geo, totals_high):
 
 def update_record (offending, record_file, now, record_span):
 
-    old_cutoff = datetime_to_UTC_epoch(now) - record_span*3600
+    now_secs = datetime_to_UTC_epoch(now)
+    old_cutoff = now_secs - record_span*3600
 
     if offending is None:
         return

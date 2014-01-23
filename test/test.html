@@ -55,7 +55,12 @@ q.await( function(error, config, dataset) {
         now = new Date(),
         this_hour = periodObj(now).getTime(),
         extent_span = 3.6e6 * config.history.span,
-        extent = [new Date(this_hour - extent_span), new Date(this_hour)];
+        extent = [new Date(this_hour - extent_span), new Date(this_hour)],
+        addH = function(p, d) { return p + d.Hits; },
+        remH = function(p, d) { return p - d.Hits; },
+        addR = function(p, d) { return p + d.HitsRate; },
+        remR = function(p, d) { return p - d.HitsRate; },
+        ini = function() { return 0; };
 
     dataset.forEach( function(d) {
         d.Timestamp = new Date(+d.Timestamp * 1000);
@@ -65,12 +70,8 @@ q.await( function(error, config, dataset) {
         d.IsSquid = (d.IsSquid == "True");
     });
 
-    var addH = function(p, d) { return p + d.Hits; },
-        remH = function(p, d) { return p - d.Hits; },
-        addR = function(p, d) { return p + d.HitsRate; },
-        remR = function(p, d) { return p - d.HitsRate; },
-        ini = function() { return 0; },
-        ndx = crossfilter(dataset),
+    var ndx = crossfilter(dataset),
+        time = ndx.dimension( function(d) { return d.Timestamp; }),
         time_site = ndx.dimension(function(d) { return [d.Timestamp, d.Sites]; }),
         time_sites = time_site.group().reduce(addH, remH, ini),
         hits = ndx.dimension(function(d){ return d.Hits; }),
@@ -83,6 +84,8 @@ q.await( function(error, config, dataset) {
     d3.select("#date-end")
       .attr("datetime", extent[1])
       .text(date_format(extent[1]));
+
+    time.filterRange(extent);
 
     time_chart
       .width(0.85 * width)
