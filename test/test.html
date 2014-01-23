@@ -37,11 +37,26 @@
 
     </div>
 
+    <div class="row">
+        <table class="table table-hover dc-data-table" id="hosts-table">
+            <thead>
+            <tr class="header">
+                <th>Host</th>
+                <th>Is Squid?</th>
+                <th>Hits</th>
+                <th>Last Visit</th>
+                <th>Bandwidth</th>
+            </tr>
+            </thead>
+        </table>
+    </div>
+
 </div> <!-- end container -->
 
 <script type="text/javascript">
 
 var time_chart = seriesBarChart("#time-chart"),
+    hosts_table = dc.dataTable("#hosts-table"),
     width = time_chart.root()[0][0].parentElement.clientWidth;
 
 var q = queue().defer(d3.json, "config.json")
@@ -70,8 +85,11 @@ q.await( function(error, config, dataset) {
         d.IsSquid = (d.IsSquid == "True");
     });
 
+    console.log(dataset)
+
     var ndx = crossfilter(dataset),
         time = ndx.dimension( function(d) { return d.Timestamp; }),
+        site = ndx.dimension( function(d) { return d.Sites; }),
         time_site = ndx.dimension(function(d) { return [d.Timestamp, d.Sites]; }),
         time_sites = time_site.group().reduce(addH, remH, ini),
         hits = ndx.dimension(function(d){ return d.Hits; }),
@@ -108,6 +126,17 @@ q.await( function(error, config, dataset) {
               .gap(5) )
       .seriesSort(d3.ascending)
       .brushOn(false);
+
+    hosts_table.dimension(site)
+               .group(function(d) { return d.Sites; })
+               .columns([
+                    function(d) { return d.Host; },
+                    function(d) { return d.IsSquid; },
+                    function(d) { return d.Hits; },
+                    function(d) { return d['Last visit']; },
+                    function(d) { return d.Bandwidth; }
+                    ])
+               .sortBy(function(d) { return d.IsSquid + d.Host; }); 
 
     dc.renderAll();
 });

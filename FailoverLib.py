@@ -39,8 +39,8 @@ def load_awstats_data (machine, day=None):
     del dataframe['Pages'] # Because it is identical to 'Hits'
 
     dataframe['Hits'] = dataframe['Hits'].map(int)
-    dataframe['Bandwidth'] = dataframe['Bandwidth'].map(to_bytes)
-    dataframe['Last visit']= pd.to_datetime(dataframe['Last visit'])
+    dataframe['Bandwidth'] = dataframe['Bandwidth'].map(to_bytes).astype(int)
+    dataframe['Last visit'] = parse_timestamp_column(dataframe['Last visit'])
 
     return dataframe
 
@@ -217,6 +217,13 @@ class GeoIPWrapper(object):
             isp = 'Unknown'
 
         return isp
+
+def parse_timestamp_column (series):
+
+    epoch_ns = pd.to_datetime(series) - datetime(1970,1,1)
+    epoch = epoch_ns.astype(int) / int(1e9)
+
+    return epoch
 
 if __name__ == "__main__":
 

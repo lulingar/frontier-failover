@@ -160,13 +160,14 @@ def update_record (offending, record_file, now, record_span):
     if os.path.exists(record_file):
         records = pd.read_csv(record_file)
         records = records[ records['Timestamp'] >= old_cutoff ]
+        records['Last visit'] = fl.parse_timestamp_column(records['Last visit'])
 
     else:
         records = None
 
     to_add = offending.copy()
     to_add = to_add.drop('Institution', axis=1)
-    to_add.insert(0, 'Timestamp', now_secs)
+    to_add['Timestamp'] = now_secs
 
     if records:
         update = pd.concat([records, to_add])
