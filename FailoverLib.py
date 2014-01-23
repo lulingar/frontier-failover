@@ -212,7 +212,8 @@ class GeoIPWrapper(object):
             isp = self.geoip.org_by_name(host)\
                       .encode('ascii', 'ignore')\
                       .replace(' ', '')  # Spaces are removed in the geolist
-        except socket.gaierror:
+
+        except (socket.gaierror, AttributeError):
             isp = 'Unknown'
 
         return isp
