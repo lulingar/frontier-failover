@@ -155,7 +155,7 @@ def parse_exceptionlist (exceptionlist_data):
 def build_squids_list (geo_table, monitoring_table):
 
     non_dns = geo_table[~geo_table.IsDNS].Host
-    squid_names = set( non_dns.unique() )
+    squid_names = set( non_dns.tolist() )
 
     # Assumption: hostnames in the monitoring view are not DNSs
     squid_names.update( monitoring_table.Host.tolist() )

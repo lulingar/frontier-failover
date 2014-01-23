@@ -19,7 +19,7 @@
 <script type="text/javascript" src="js/myutils.js"></script>
 
 <div class="container">
-    <h1>New Extended Frontier Failover history</h1>
+    <h1>Frontier Failover history</h1>
 
     <div class="row">
         <div id="time-chart" class="dc-chart span6">
@@ -79,13 +79,14 @@ q.await( function(error, config, dataset) {
 
     dataset.forEach( function(d) {
         d.Timestamp = new Date(+d.Timestamp * 1000);
+        d['Last visit'] = new Date(+d['Last visit'] * 1000);
         d.Hits = +d.Hits;
         d.HitsRate = +d.HitsRate;
         d.Bandwidth = +d.Bandwidth;
         d.IsSquid = (d.IsSquid == "True");
     });
 
-    console.log(dataset)
+    console.log(dataset);
 
     var ndx = crossfilter(dataset),
         time = ndx.dimension( function(d) { return d.Timestamp; }),
@@ -133,7 +134,7 @@ q.await( function(error, config, dataset) {
                     function(d) { return d.Host; },
                     function(d) { return d.IsSquid; },
                     function(d) { return d.Hits; },
-                    function(d) { return d['Last visit']; },
+                    function(d) { return date_format(d['Last visit']); },
                     function(d) { return d.Bandwidth; }
                     ])
                .sortBy(function(d) { return d.IsSquid + d.Host; }); 

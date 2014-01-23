@@ -160,7 +160,6 @@ def update_record (offending, record_file, now, record_span):
     if os.path.exists(record_file):
         records = pd.read_csv(record_file)
         records = records[ records['Timestamp'] >= old_cutoff ]
-        records['Last visit'] = fl.parse_timestamp_column(records['Last visit'])
 
     else:
         records = None
