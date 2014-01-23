@@ -4,12 +4,9 @@ import calendar
 import json
 import os
 import sys
-
 from datetime import datetime
 
 import pandas as pd
-pd.options.display.width = 130
-pd.options.display.max_rows = 100
 
 import FailoverLib as fl
 
@@ -49,7 +46,6 @@ def analyze_failovers_to_group (config, groupname, geo, squids, geoip):
     now = datetime.utcnow()
 
     awdata = fl.load_aggregated_awstats_data(instances)
-
     last_timestamp, last_awdata = load_last_data(last_stats_file)
     save_last_data(last_stats_file, awdata, now)
 
@@ -62,15 +58,17 @@ def analyze_failovers_to_group (config, groupname, geo, squids, geoip):
         awdata.insert( 0, 'IsSquid', awdata.index.isin(squids.Host) )
         awdata = add_institutions( awdata, geoip.get_isp)
         offending, totals_high = excess_failover_check( awdata, squids, site_rate_threshold)
-
     else:
         offending = None
         totals_high = None
 
-    get_sites = lambda inst: sites_from_institution(inst, geo)
+    #TODO: Implement exception for some French machines
+    if offending:
+        get_sites = lambda inst: sites_from_institution(inst, geo)
+        offending['Sites'] = offending['Institution'].apply(get_sites)
 
-    gen_report (groupname, geo, offending, totals_high, get_sites)
-    update_record (record_file, offending, now, record_span, get_sites)
+    gen_report (offending, groupname, geo, totals_high)
+    update_record (offending, record_file, now, record_span)
 
     return 0
 
@@ -132,7 +130,7 @@ def excess_failover_check (awdata, squids, site_rate_threshold):
 
     return offending, totals_high
 
-def gen_report (groupname, geo, offending, totals_high, sites_function):
+def gen_report (offending, groupname, geo, totals_high):
 
     print "Failover activity to %s:" % groupname
 
@@ -143,33 +141,31 @@ def gen_report (groupname, geo, offending, totals_high, sites_function):
     for_report = offending.copy()
 
     if len(for_report) > 0:
-        for_report['Sites'] = for_report['Institution'].apply(sites_function)
+
+        pd.options.display.width = 130
+        pd.options.display.max_rows = 100
         print for_report.set_index(['Institution', 'IsSquid', 'Host']).sortlevel(0), "\n"
 
     else:
         print " None.\n"
 
-def update_record (record_file, new_data, now, record_span, sites_function):
+def update_record (offending, record_file, now, record_span):
 
-    time_field = 'Timestamp'
+    old_cutoff = datetime_to_UTC_epoch(now) - record_span*3600
 
-    now_secs = datetime_to_UTC_epoch(now)
-
-    if new_data is None:
+    if offending is None:
         return
 
     if os.path.exists(record_file):
         records = pd.read_csv(record_file)
-        old_cutoff = now_secs - record_span*3600
-        records = records[ records[time_field] >= old_cutoff ]
+        records = records[ records['Timestamp'] >= old_cutoff ]
 
     else:
         records = None
 
-    to_add = new_data.copy()
-    to_add['Sites'] = to_add['Institution'].apply(sites_function)
+    to_add = offending.copy()
     to_add = to_add.drop('Institution', axis=1)
-    to_add.insert(0, time_field, now_secs)
+    to_add.insert(0, 'Timestamp', now_secs)
 
     if records:
         update = pd.concat([records, to_add])
