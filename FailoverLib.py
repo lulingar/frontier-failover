@@ -92,7 +92,7 @@ def parse_geolist (geolistdata):
                 protocol, listed_host_name, port = host_data
 
             ip_addresses = simple_get_host_ipv4 (listed_host_name)
-            is_dns = len(ip_addresses) > 1
+            is_dns = (len(ip_addresses) > 1)
 
             for ip in ip_addresses:
 
@@ -197,7 +197,8 @@ def is_a_valid_ip (address):
 
 def get_dns_addresses (hostname):
 
-    info = socket.getaddrinfo (hostname, 0)
+    # AF_INET restricts results to IPv4
+    info = socket.getaddrinfo( hostname, 0, socket.AF_INET)
     return set( e[4][0] for e in info )
 
 class GeoIPWrapper(object):

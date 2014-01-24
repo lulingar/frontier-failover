@@ -149,7 +149,7 @@ def gen_report (offending, groupname, geo, totals_high):
     else:
         print " None.\n"
 
-def update_record (offending, record_file, now, record_span):
+def update_record (offending, record_file, now, record_span, squids):
 
     now_secs = datetime_to_UTC_epoch(now)
     old_cutoff = now_secs - record_span*3600
@@ -167,6 +167,7 @@ def update_record (offending, record_file, now, record_span):
     to_add = offending.copy()
     to_add = to_add.drop('Institution', axis=1)
     to_add['Timestamp'] = now_secs
+    to_add['IsSquid'] = to_add['Host'].isin(squids.Host)
 
     if records:
         update = pd.concat([records, to_add])
