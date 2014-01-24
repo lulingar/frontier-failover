@@ -68,7 +68,7 @@ def analyze_failovers_to_group (config, groupname, geo, squids, geoip):
         offending['Sites'] = offending['Institution'].apply(get_sites)
 
     gen_report (offending, groupname, geo, totals_high)
-    update_record (offending, record_file, now, record_span)
+    update_record (offending, record_file, now, record_span, squids)
 
     return 0
 
