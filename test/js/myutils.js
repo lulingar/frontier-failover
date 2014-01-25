@@ -135,3 +135,21 @@ its points in increasing key/x order, rather than haphazardly.
     return _chart;
 };
 
+function size_natural (size) 
+{
+    if (size == 0) return "0 B";
+
+    scales = {'B': 0, 'kiB': 10, 'MiB': 20, 'GiB': 30, 'TiB': 40};
+
+    proportion = []
+    for (var key in scales) {
+        proportion.push([Math.abs(1 - ((Math.pow(2, scales[key])) / size)), key]);
+    }
+    proportion.sort();
+    scale = proportion[0][1];
+
+    number = size / Math.pow(2, scales[scale]);
+    size_str = number.toFixed(2) + ' ' + scale; 
+
+    return size_str;
+}
