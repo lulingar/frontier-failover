@@ -100,6 +100,7 @@ q.await( function(error, config, dataset) {
         d.Hits = +d.Hits;
         d.HitsRate = +d.HitsRate;
         d.Bandwidth = +d.Bandwidth;
+        d.BandwidthRate = +d.BandwidthRate;
         d.IsSquid = (d.IsSquid == "True");
     });
 
@@ -190,7 +191,7 @@ function draw_squids (is_squid) {
                           text: "No",
                           color: "#DE2810" } },
         width = 40, 
-        height = 30,
+        height = 20,
         d3image = d3.selectAll(spec[is_squid].selector),
         svgcanvas = d3image.append("svg:svg")
                            .attr("width", width)
