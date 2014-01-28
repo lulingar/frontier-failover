@@ -1,78 +1,3 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <title>Frontier Failover History</title>
-
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-
-    <link rel="stylesheet" type="text/css" href="css/dc.css"/>
-    <link rel="stylesheet" type="text/css" href="css/bootstrap.min.css"/>
-</head>
-
-<body>
-<style>
-  .squid-yes {
-     width: 40px;
-     height: 20px;
-  }
-
-  .squid-yes rect {
-     fill-opacity : 1;
-     fill  : red;
-     width : 100%;
-     height : 100%;
-  }
-
-  .squid-yes text {
-     fill : white;
-     text-anchor: middle;
-  }
-</style>
-
-<script type="text/javascript" src="js/queue.v1.min.js"></script>
-<script type="text/javascript" src="js/d3.js"></script>
-<script type="text/javascript" src="js/crossfilter.js"></script>
-<script type="text/javascript" src="js/dc.js"></script>
-<script type="text/javascript" src="js/myutils.js"></script>
-
-<div class="container">
-    <h1>Frontier Failover history</h1>
-
-    <div class="row">
-        <div id="time-chart" class="dc-chart span6">
-            <strong>Time:</strong>
-            <small class="text-muted">
-            <time id="date-start" datetime="2012-08-26 20:09-0700">8:09pm on August 26th, 2012</time> &ndash;
-            <time id="date-end" datetime="2012-08-26 20:09-0700">8:09pm on August 26th, 2012</time>
-            </small>
-            <a class="reset" href="javascript:time_chart.filterAll(); dc.redrawAll();" style="display: none;">
-                reset
-            </a>
-
-            <div class="clearfix"></div>
-        </div>
-
-    </div>
-
-    <div class="row">
-        <table class="table table-hover dc-data-table" id="hosts-table">
-            <thead>
-            <tr class="header">
-                <th>Host</th>
-                <th>Is Squid?</th>
-                <th>Hits</th>
-                <th>Bandwidth</th>
-                <th>Last Visit</th>
-            </tr>
-            </thead>
-        </table>
-    </div>
-
-</div> <!-- end container -->
-
-<script type="text/javascript">
-
 var time_chart = seriesBarChart("#time-chart"),
     hosts_table = dc.dataTable("#hosts-table"),
     width = time_chart.root()[0][0].parentElement.clientWidth;
@@ -211,6 +136,4 @@ function draw_squids (is_squid) {
              .attr("dominant-baseline", "central")
              .style("fill", "white");
 }
-</script>
-</body>
-</html>
+
