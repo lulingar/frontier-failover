@@ -106,7 +106,7 @@ def compute_traffic_delta (now_stats, last_stats, now_timestamp, last_timestamp)
     # Get the deltas and rates of Hits and Bandwidth of recently updated/added hosts
     deltas = now_stats[cols] - last_stats[cols]
     deltas[~deltas.index.isin(last_stats.index)] = now_stats[cols]
-    rates = deltas / float(delta_t)
+    rates = deltas.copy() / float(delta_t)
 
     # Add computed columns to table, dropping the original columns since they
     # are a long-running accumulation.
