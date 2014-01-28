@@ -14,24 +14,24 @@ q.await( function(error, config, dataset) {
         this_hour = periodObj(now).getTime(),
         extent_span = 3.6e6 * config.history.span,
         extent = [new Date(this_hour - extent_span), new Date(this_hour)],
-        addH = function(p, d) { return p + d.Hits; },
-        remH = function(p, d) { return p - d.Hits; },
+        addH = function(p, d) { return p + d["Hits"]; },
+        remH = function(p, d) { return p - d["Hits"]; },
         ini = function() { return 0; },
         legend_item_size = 20;
 
     dataset.forEach( function(d) {
-        d.Timestamp = new Date(+d.Timestamp * 1000);
+        d["Timestamp"] = new Date(+d["Timestamp"] * 1000);
         d['Last visit'] = new Date(+d['Last visit'] * 1000);
-        d.Hits = +d.Hits;
-        d.HitsRate = +d.HitsRate;
-        d.Bandwidth = +d.Bandwidth;
-        d.BandwidthRate = +d.BandwidthRate;
-        d.IsSquid = (d.IsSquid == "True");
+        d["Hits"] = +d["Hits"];
+        d["HitsRate"] = +d["HitsRate"];
+        d["Bandwidth"] = +d["Bandwidth"];
+        d["BandwidthRate"] = +d["BandwidthRate"];
+        d["IsSquid"] = (d["IsSquid"] == "True");
     });
 
     var ndx = crossfilter(dataset),
-        time = ndx.dimension( function(d) { return d.Timestamp; }),
-        site = ndx.dimension( function(d) { return d.Sites; }),
+        time = ndx.dimension( function(d) { return d["Timestamp"]; }),
+        site = ndx.dimension( function(d) { return d["Sites"]; }),
         site_list = site.group().all().map( function(d){ return d.key; }),
         num_sites = site_list.length,
         site_name_lengths = site_list.map( function(s){ return s.length; }),
@@ -39,9 +39,9 @@ q.await( function(error, config, dataset) {
                                 .reverse()[0],
         legend_space_v = (1 + num_sites) * legend_item_size,
         legend_space_h = 7*max_length,
-        time_site = ndx.dimension(function(d) { return [d.Timestamp, d.Sites]; }),
+        time_site = ndx.dimension(function(d) { return [d["Timestamp"], d["Sites"]]; }),
         time_sites = time_site.group().reduce(addH, remH, ini),
-        hits = ndx.dimension(function(d){ return d.Hits; }),
+        hits = ndx.dimension(function(d){ return d["Hits"]; }),
         hitsCounts = hits.group().reduce(addH, remH, ini),
         date_format = d3.time.format("%b %d, %Y %I:%M %p");
 
@@ -81,15 +81,15 @@ q.await( function(error, config, dataset) {
 
     // Table widget for displaying failover details
     hosts_table.dimension(site)
-               .group(function(d) { return d.Sites; })
+               .group(function(d) { return d["Sites"]; })
                .columns([
-                    function(d) { return d.Host; },
-                    function(d) { return squid_place(d.IsSquid); },
-                    function(d) { return d.Hits; },
-                    function(d) { return size_natural(d.Bandwidth); },
+                    function(d) { return d["Host"]; },
+                    function(d) { return squid_place(d["IsSquid"]); },
+                    function(d) { return d["Hits"]; },
+                    function(d) { return size_natural(d["Bandwidth"]); },
                     function(d) { return date_format(d['Last visit']); }
                     ])
-               .sortBy(function(d) { return [d['Last visit'], d.Hits]; })
+               .sortBy(function(d) { return [d['Last visit'], d["Hits"]]; })
                .order(d3.descending)
                .size(Infinity)
                .renderlet(function(table){

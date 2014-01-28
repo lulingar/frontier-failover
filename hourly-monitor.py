@@ -174,8 +174,7 @@ def update_record (offending, record_file, now, record_span, squids):
     else:
         records = None
 
-    to_add = offending.copy()
-    to_add = to_add.drop('Institution', axis=1)
+    to_add = offending.drop('Institution', axis=1)
     to_add['Timestamp'] = now_secs
     to_add['IsSquid'] = to_add['Host'].isin(squids.Host)
 
