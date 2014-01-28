@@ -111,6 +111,9 @@ def compute_traffic_delta (now_stats, last_stats, now_timestamp, last_timestamp)
     # Add computed columns to table, dropping the original columns since they
     # are a long-running accumulation.
     rates.rename(columns = lambda x: x + "Rate", inplace=True)
+    print now_stats.drop(cols, axis=1).columns
+    print rates.columns
+    print deltas.columns
     table = now_stats.drop(cols, axis=1)\
                      .join([deltas, rates])\
                      .dropna()                  # Drop hosts that were not updated
