@@ -101,11 +101,21 @@ def datetime_to_UTC_epoch (dt):
 def compute_traffic_delta (now_stats, last_stats, now_timestamp, last_timestamp):
 
     delta_t = datetime_to_UTC_epoch(now_timestamp) - datetime_to_UTC_epoch(last_timestamp)
+    cols = ['Hits', 'Bandwidth']
 
-    table = now_stats.copy()
-    table['HitsRate'] = ( table['Hits'] - last_stats['Hits'] ) / float(delta_t)
+    # Get the deltas and rates of Hits and Bandwidth of recently updated/added hosts
+    deltas = now_stats[cols] - last_stats[cols]
+    deltas[~deltas.index.isin(last_stats.index)] = now_stats[cols]
+    rates = deltas / float(delta_t)
 
-    return table.dropna()
+    # Add computed columns to table, dropping the original columns since they
+    # are a long-running accumulation.
+    rates.rename(columns = lambda x: x + "Rate", inplace=True)
+    table = now_stats.drop(cols, axis=1)\
+                     .join([deltas, rates])\
+                     .dropna()                  # Drop hosts that were not updated
+
+    return table
 
 def add_institutions (awstats_dataframe, isp_func):
 
@@ -119,9 +129,9 @@ def add_institutions (awstats_dataframe, isp_func):
 def excess_failover_check (awdata, squids, site_rate_threshold):
 
     non_squid_stats = awdata[ ~awdata['IsSquid'] ]
-
     by_institution = non_squid_stats.groupby('Institution')
-    totals = by_institution[['HitsRate', 'Bandwidth']].sum()
+
+    totals = by_institution[['HitsRate', 'BandwidthRate']].sum()
     totals_high = totals[ totals['HitsRate'] > site_rate_threshold ]
 
     offending = awdata[ awdata['Institution'].isin(totals_high.index) ].reset_index()
