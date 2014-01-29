@@ -1,9 +1,13 @@
 var time_chart = seriesBarChart("#time-chart"),
+    group_chart = dc.pieChart("#group-chart"),
     hosts_table = dc.dataTable("#hosts-table"),
-    width = time_chart.root()[0][0].parentElement.clientWidth;
+    time_chart_width = time_chart.root()[0][0].parentElement.clientWidth,
+    data_file = "test.csv",
+    date_format = d3.time.format("%b %d, %Y %I:%M %p"),
+    ndx, all, site_D; 
 
 var q = queue().defer(d3.json, "config.json")
-               .defer(d3.csv, "test.csv");
+               .defer(d3.csv, data_file);
 
 q.await( function(error, config, dataset) {
 
@@ -19,31 +23,24 @@ q.await( function(error, config, dataset) {
         ini = function() { return 0; },
         legend_item_size = 20;
 
-    dataset.forEach( function(d) {
-        d["Timestamp"] = new Date(+d["Timestamp"] * 1000);
-        d['Last visit'] = new Date(+d['Last visit'] * 1000);
-        d["Hits"] = +d["Hits"];
-        d["HitsRate"] = +d["HitsRate"];
-        d["Bandwidth"] = +d["Bandwidth"];
-        d["BandwidthRate"] = +d["BandwidthRate"];
-        d["IsSquid"] = (d["IsSquid"] == "True");
-    });
+    ndx = crossfilter( process_data(dataset));
+    all = ndx.groupAll().reduce(addH, remH, ini);
+    site_D = ndx.dimension( function(d) { return d["Sites"]; })
 
-    var ndx = crossfilter(dataset),
-        time = ndx.dimension( function(d) { return d["Timestamp"]; }),
-        site = ndx.dimension( function(d) { return d["Sites"]; }),
-        site_list = site.group().all().map( function(d){ return d.key; }),
+    var time_D = ndx.dimension( function(d) { return d["Timestamp"]; }),
+        group_D = ndx.dimension( function(d) { return d["Group"]; }),
+        hits_D = ndx.dimension(function(d){ return d["Hits"]; }),
+        time_site_D = ndx.dimension(function(d) { return [d["Timestamp"], d["Sites"]]; }),
+        group_G = group_D.group().reduce(addH, remH, ini),
+        time_sites_G = time_site_D.group().reduce(addH, remH, ini),
+        hits_G = hits_D.group().reduce(addH, remH, ini),
+        site_list = site_D.group().all().map( function(d){ return d.key; }),
         num_sites = site_list.length,
         site_name_lengths = site_list.map( function(s){ return s.length; }),
         max_length = crossfilter.quicksort(site_name_lengths, 0, site_name_lengths.length)
                                 .reverse()[0],
         legend_space_v = (1 + num_sites) * legend_item_size,
-        legend_space_h = 7*max_length,
-        time_site = ndx.dimension(function(d) { return [d["Timestamp"], d["Sites"]]; }),
-        time_sites = time_site.group().reduce(addH, remH, ini),
-        hits = ndx.dimension(function(d){ return d["Hits"]; }),
-        hitsCounts = hits.group().reduce(addH, remH, ini),
-        date_format = d3.time.format("%b %d, %Y %I:%M %p");
+        legend_space_h = 7*max_length;
 
     // Display the currently plotted time span
     d3.select("#date-start")
@@ -53,17 +50,15 @@ q.await( function(error, config, dataset) {
       .attr("datetime", extent[1])
       .text(date_format(extent[1]));
 
-    time.filterRange(extent);
-
     // The time series
     time_chart
       .width(1024)
       .height(415)
       .margins({top: 30, right: 30+legend_space_h, bottom: 30, left: 60})
-      .dimension(time_site)
-      .group(time_sites)
+      .dimension(time_site_D)
+      .group(time_sites_G)
       .seriesAccessor(function(d) { return d.key[1]; })
-      .keyAccessor(function(d) {return d.key[0];})
+      .keyAccessor(function(d) { return d.key[0]; })
       .elasticY(true)
       .elasticX(true)
       .xAxisLabel("Time")
@@ -72,42 +67,86 @@ q.await( function(error, config, dataset) {
       .xUnits(periodRange)
       .renderHorizontalGridLines(true)
       .legend( dc.legend()
-              .x( 1024-legend_space_h )
-              .y(10)
-              .itemHeight(legend_item_size).itemWidth(150)
+              .x( 1024-legend_space_h ).y(10)
+              .itemWidth(150).itemHeight(legend_item_size)
               .gap(5) )
       .seriesSort(d3.ascending)
-      .brushOn(false);
+      .brushOn(false)
+      .renderlet(function(chart) {
+           // TODO Replace d3 by using chart
+           d3.selectAll("#time-chart .dc-legend-item")
+             .on("click", function(d) { 
+                 //TODO copy filtering functionality of pie chart
+                 site_D.filterExact(d.name);
+                 d3.select("#time-chart .reset")
+                   .style("display", null);
+                 dc.redrawAll(); 
+              }); 
+       });
+
+    // The group chart
+    group_chart.width(400)
+               .height(140)
+               .radius(60)
+               .innerRadius(20)
+               .dimension(group_D)
+               .group(group_G)
+               .label(function (d) {
+                   if (group_chart.hasFilter() && !group_chart.hasFilter(d.key))
+                        return "0%";
+                    return Math.floor(d.value / all.value() * 100);
+                })
+               .renderlet( function(chart) {
+                    draw_squids();
+                })
+               .legend( dc.legend().x(140).y(0).gap(5) );
 
     // Table widget for displaying failover details
-    hosts_table.dimension(site)
+    hosts_table.dimension(site_D)
                .group(function(d) { return d["Sites"]; })
                .columns([
                     function(d) { return d["Host"]; },
                     function(d) { return squid_place(d["IsSquid"]); },
                     function(d) { return d["Hits"]; },
                     function(d) { return size_natural(d["Bandwidth"]); },
-                    function(d) { return date_format(d['Last visit']); }
+                    function(d) { return date_format(d["Last visit"]); }
                     ])
-               .sortBy(function(d) { return [d['Last visit'], d["Hits"]]; })
+               .sortBy(function(d) { return [d["Last visit"], d["Hits"]]; })
                .order(d3.descending)
                .size(Infinity)
+               .on("filtered", function(chart, filter) {
+                       draw_squids();
+                       })
                .renderlet(function(table){
                     table.selectAll(".dc-table-group").classed("info", true);
                });
 
     // Draw all objects
     dc.renderAll();
-    draw_squids(true);
-    draw_squids(false);
 });
+
+function process_data(dataset) {
+    var dataset = dataset;
+
+    dataset.forEach( function(d) {
+        d["Timestamp"] = new Date(+d["Timestamp"] * 1000);
+        d["Last visit"] = new Date(+d["Last visit"] * 1000);
+        d["Hits"] = +d["Hits"];
+        d["HitsRate"] = +d["HitsRate"];
+        d["Bandwidth"] = +d["Bandwidth"];
+        d["BandwidthRate"] = +d["BandwidthRate"];
+        d["IsSquid"] = (d["IsSquid"] == "True");
+    });
+
+    return dataset;
+}
 
 function squid_place (is_squid) {
     var spec = {true: "yes", false: "no"};
     return '<div class="squid-' + spec[is_squid] + '"></div>';
 }
 
-function draw_squids (is_squid) {
+function draw_squids() {
 
     var spec = {  true: { selector: ".squid-yes",
                           text: "Yes",
@@ -116,24 +155,45 @@ function draw_squids (is_squid) {
                           text: "No",
                           color: "#DE2810" } },
         width = 40, 
-        height = 20,
-        d3image = d3.selectAll(spec[is_squid].selector),
-        svgcanvas = d3image.append("svg:svg")
-                           .attr("width", width)
-                           .attr("height", height);
+        height = 20;
 
-    svgcanvas.append("svg:rect")
-             .attr("x",0)
-             .attr("y",0)
-             .attr("width", width)
-             .attr("height", height)
-             .style("fill", spec[is_squid].color),
-    svgcanvas.append("svg:text")
-             .text(spec[is_squid].text)    
-             .attr("x", width/2)
-             .attr("y", height/2)
-             .attr("text-anchor", "middle")
-             .attr("dominant-baseline", "central")
-             .style("fill", "white");
+    function draw_type(is_squid) {
+        var d3image = d3.selectAll(spec[is_squid].selector),
+            svgcanvas = d3image.append("svg:svg")
+                               .attr("width", width)
+                               .attr("height", height);
+
+        svgcanvas.append("svg:rect")
+                 .attr("x",0)
+                 .attr("y",0)
+                 .attr("width", width)
+                 .attr("height", height)
+                 .style("fill", spec[is_squid].color),
+        svgcanvas.append("svg:text")
+                 .text(spec[is_squid].text)    
+                 .attr("x", width/2)
+                 .attr("y", height/2)
+                 .attr("text-anchor", "middle")
+                 .attr("dominant-baseline", "central")
+                 .style("fill", "white");
+    }
+
+    draw_type(true);
+    draw_type(false);
 }
 
+function reload() {
+    d3.csv( data_file, 
+            function (error, dataset) {
+                ndx.remove();
+                ndx.add( process_data(dataset));
+                dc.renderAll();
+            } );
+}
+
+function time_chart_reset() {
+    site_D.filterAll();
+    d3.select("#time-chart .reset")
+      .style("display", "none");
+    dc.redrawAll(); 
+}

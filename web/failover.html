@@ -16,23 +16,47 @@
 <div class="container">
     <h1>Frontier Failover history</h1>
 
+
     <div class="row">
-        <div id="time-chart" class="dc-chart span6">
-            <strong>Time:</strong>
-            <small class="text-muted">
-            <time id="date-start" datetime="1986-09-24 17:45-0500">5:45pm on September 24th, 1986</time> &ndash;
-            <time id="date-end" datetime="1986-09-24 17:45-0500">5:45pm on September 24th, 1986</time>
-            </small>
-            <a class="reset" href="javascript:time_chart.filterAll(); dc.redrawAll();" style="display: none;">
-                reset
-            </a>
-
-            <div class="clearfix"></div>
+        <div class="col-md-8">
+                <strong>Time:</strong>
+                <small class="text-muted">
+                <time id="date-start" datetime="1986-09-24 17:45-0500"></time> &ndash;
+                <time id="date-end" datetime="1986-09-24 17:45-0500"></time>
+                </small>
         </div>
-
+        <div class="clearfix"></div>
+        <div class="col-md-1">
+            <div>
+                <button onclick="reload()" class="btn btn-primary">Update</button>
+            </div>
+        </div>
     </div>
 
     <div class="row">
+        <div class="col-md-4">
+            <div id="group-chart" class="dc-chart">
+                <strong>Machine Groups</strong>
+                <a class="reset" href="javascript:group_chart.filterAll(); dc.redrawAll();" style="display: none;">
+                    reset
+                </a>
+
+                <div class="clearfix"></div>
+            </div>
+        </div>
+
+        <div class="col-md-8">
+            <div id="time-chart" class="dc-chart">
+                <strong>Hits by site per hour</strong>
+                <a class="reset" href="javascript:time_chart_reset();" style="display: none;">
+                    reset
+                </a>
+            </div>
+        </div>
+    </div>
+
+    <div class="row">
+        <strong>Access History Detail</strong>
         <table class="table table-hover dc-data-table" id="hosts-table">
             <thead>
             <tr class="header">
@@ -44,6 +68,8 @@
             </tr>
             </thead>
         </table>
+
+        <div class="clearfix"></div>
     </div>
 
 </div> <!-- end container -->
