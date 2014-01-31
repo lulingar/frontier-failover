@@ -11,7 +11,7 @@
          "fnal-cmsbproxy1", 
          "fnal-cmsbproxy2"
       ], 
-      "file_last_stats": "/tmp/last_stats_fnal-bps.csv",
+      "file_last_stats": "/tmp/last_stats_fnal-bps.csv"
    }, 
    "CMS CERN Frontier Backup Proxies": {
       "rate_threshold": 2.77778, 
@@ -19,7 +19,7 @@
          "cmsbpfrontier1", 
          "cmsbpfrontier2"
       ], 
-      "file_last_stats": "/tmp/last_stats_cern-bps.csv",
+      "file_last_stats": "/tmp/last_stats_cern-bps.csv"
    }, 
    "CMS CERN Frontier Launchpads": {
       "rate_threshold": 2.77778, 
@@ -28,7 +28,7 @@
          "cmsfrontier2", 
          "cmsfrontier3"
       ], 
-      "file_last_stats": "/tmp/last_stats_launchpads.csv",
+      "file_last_stats": "/tmp/last_stats_launchpads.csv"
    }
  }
 }
