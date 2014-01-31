@@ -43,8 +43,9 @@ def main():
         past_records = get_group_records(current_records, machine_group_name)
         failover = analyze_failovers_to_group( config, machine_group_name, now,
                                                past_records, geo, squids, geoip )
-        failover['Group'] = machine_group_name
-        failover_groups.append(failover.copy())
+        if isinstance(failover, pd.DataFrame):
+            failover['Group'] = machine_group_name
+            failover_groups.append(failover.copy())
 
     failover_record = pd.concat(failover_groups)
     failover_record.to_csv(record_file, index=False)
@@ -66,7 +67,7 @@ def load_records (record_file, now, record_span):
 
 def get_group_records (records, group_name):
 
-    if records and 'Group' in records:
+    if isinstance(records, pd.DataFrame) and 'Group' in records:
         return records[ records['Group'] == group_name ]
     else:
         return None
@@ -84,7 +85,7 @@ def analyze_failovers_to_group (config, groupname, now, past_records, geo, squid
     save_last_data(last_stats_file, awdata, now)
 
     if last_awdata is None:
-        return 1
+        return None
 
     awdata = compute_traffic_delta( awdata, last_awdata, now, last_timestamp)
 
