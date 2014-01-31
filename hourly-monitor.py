@@ -27,18 +27,21 @@ def main():
     actions, WN_view, MO_view = fl.parse_exceptionlist( fl.get_url( exception_list_file))
     squids = fl.build_squids_list(geo, MO_view)
     geoip = fl.GeoIPWrapper( os.path.expanduser( geoip_database_file))
+    now = datetime.utcnow()
 
     config = json.load( open(config_file))
     json.dump(config, open(config_file, 'w'), indent=3)
 
     groups = config['groups']
-    current_records = load_records(config['record_file'])
+    record_file = config['record_file']
+    record_span = config['history']['span']
+    current_records = load_records(record_file, now, record_span)
     failover_groups = []
 
     for machine_group_name in groups.keys():
 
         past_records = get_group_records(current_records, machine_group_name)
-        failover = analyze_failovers_to_group( config, machine_group_name,
+        failover = analyze_failovers_to_group( config, machine_group_name, now,
                                                past_records, geo, squids, geoip )
         failover['Group'] = machine_group_name
         failover_groups.append(failover.copy())
@@ -48,10 +51,14 @@ def main():
 
     return 0
 
-def load_records (record_file):
+def load_records (record_file, now, record_span):
+
+    now_secs = datetime_to_UTC_epoch(now)
+    old_cutoff = now_secs - record_span*3600
 
     if os.path.exists(record_file):
         records = pd.read_csv(record_file)
+        records = records[ records['Timestamp'] >= old_cutoff ]
     else:
         records = None
 
@@ -59,21 +66,18 @@ def load_records (record_file):
 
 def get_group_records (records, group_name):
 
-    if records and if 'Group' in records:
+    if records and 'Group' in records:
         return records[ records['Group'] == group_name ]
-    else
+    else:
         return None
 
-def analyze_failovers_to_group (config, groupname, past_records, geo, squids, geoip):
+def analyze_failovers_to_group (config, groupname, now, past_records, geo, squids, geoip):
 
-    record_span = config['history']['span']
     groupconf = config['groups'][groupname]
 
     instances = groupconf['instances']
     last_stats_file = groupconf['file_last_stats']
     site_rate_threshold = groupconf['rate_threshold']   # Unit: Queries/sec
-
-    now = datetime.utcnow()
 
     awdata = fl.load_aggregated_awstats_data(instances)
     last_timestamp, last_awdata = load_last_data(last_stats_file)
@@ -98,7 +102,7 @@ def analyze_failovers_to_group (config, groupname, past_records, geo, squids, ge
         offending['Sites'] = offending['Institution'].apply(get_sites)
 
     gen_report (offending, groupname, geo, totals_high)
-    failovers = update_record (offending, past_records, now, record_span, squids)
+    failovers = update_record (offending, past_records, now, squids)
 
     return failovers
 
@@ -189,10 +193,9 @@ def gen_report (offending, groupname, geo, totals_high):
     else:
         print " None.\n"
 
-def update_record (offending, past_records=None, now, record_span, squids):
+def update_record (offending, past_records, now, squids):
 
     now_secs = datetime_to_UTC_epoch(now)
-    old_cutoff = now_secs - record_span*3600
 
     if offending is None:
         return
