@@ -1,4 +1,5 @@
 {
+ "record_file": "/tmp/failover-record.csv",
  "history": {
    "span": 72,
    "period": 60
@@ -11,7 +12,6 @@
          "fnal-cmsbproxy2"
       ], 
       "file_last_stats": "/tmp/last_stats_fnal-bps.csv",
-      "file_record": "/tmp/record_fnal-bps.csv"
    }, 
    "CMS CERN Frontier Backup Proxies": {
       "rate_threshold": 2.77778, 
@@ -20,7 +20,6 @@
          "cmsbpfrontier2"
       ], 
       "file_last_stats": "/tmp/last_stats_cern-bps.csv",
-      "file_record": "/tmp/record_cern-bps.csv"
    }, 
    "CMS CERN Frontier Launchpads": {
       "rate_threshold": 2.77778, 
@@ -30,7 +29,6 @@
          "cmsfrontier3"
       ], 
       "file_last_stats": "/tmp/last_stats_launchpads.csv",
-      "file_record": "/tmp/record_launchpads.csv"
    }
  }
 }
