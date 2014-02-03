@@ -21,7 +21,9 @@ q.await( function(error, config, dataset) {
         addH = function(p, d) { return p + d["Hits"]; },
         remH = function(p, d) { return p - d["Hits"]; },
         ini = function() { return 0; },
-        legend_item_size = 20;
+        sites_legend_item_size = 20,
+        groups_base_dim = 150,
+        groups_legend_width = 200;
 
     ndx = crossfilter( process_data(dataset));
     all = ndx.groupAll().reduce(addH, remH, ini);
@@ -39,8 +41,9 @@ q.await( function(error, config, dataset) {
         site_name_lengths = site_list.map( function(s){ return s.length; }),
         max_length = crossfilter.quicksort(site_name_lengths, 0, site_name_lengths.length)
                                 .reverse()[0],
-        legend_space_v = (1 + num_sites) * legend_item_size,
-        legend_space_h = 7*max_length;
+        sites_legend_space_v = (1 + num_sites) * sites_legend_item_size,
+        sites_legend_space_h = 7*max_length,
+        groups_radius = groups_base_dim/2 - 15;
 
     // Display the currently plotted time span
     d3.select("#date-start")
@@ -54,7 +57,7 @@ q.await( function(error, config, dataset) {
     time_chart
       .width(1024)
       .height(415)
-      .margins({top: 30, right: 30+legend_space_h, bottom: 30, left: 60})
+      .margins({top: 30, right: 30+sites_legend_space_h, bottom: 30, left: 60})
       .dimension(time_site_D)
       .group(time_sites_G)
       .seriesAccessor(function(d) { return d.key[1]; })
@@ -67,8 +70,8 @@ q.await( function(error, config, dataset) {
       .xUnits(periodRange)
       .renderHorizontalGridLines(true)
       .legend( dc.legend()
-              .x( 1024-legend_space_h ).y(10)
-              .itemWidth(150).itemHeight(legend_item_size)
+              .x( 1024-sites_legend_space_h ).y(10)
+              .itemWidth(150).itemHeight(sites_legend_item_size)
               .gap(5) )
       .seriesSort(d3.ascending)
       .brushOn(false)
@@ -85,10 +88,10 @@ q.await( function(error, config, dataset) {
        });
 
     // The group chart
-    group_chart.width(400)
-               .height(140)
-               .radius(60)
-               .innerRadius(20)
+    group_chart.width(groups_base_dim)
+               .height(groups_base_dim)
+               .radius(groups_radius)
+               .innerRadius(0.3*groups_radius)
                .dimension(group_D)
                .group(group_G)
                .label(function (d) {
@@ -99,7 +102,10 @@ q.await( function(error, config, dataset) {
                .renderlet( function(chart) {
                     draw_squids();
                 })
-               .legend( dc.legend().x(140).y(0).gap(5) );
+               .legend( dc.legend().x(groups_base_dim).y(0).gap(5) );
+
+    group_chart.select('svg')
+               .attr("width", groups_base_dim + groups_legend_width);
 
     // Table widget for displaying failover details
     hosts_table.dimension(site_D)
