@@ -97,15 +97,12 @@ q.await( function(error, config, dataset) {
                .label(function (d) {
                    if (group_chart.hasFilter() && !group_chart.hasFilter(d.key))
                         return "0%";
-                    return Math.floor(d.value / all.value() * 100);
+                    return (100 * d.value / all.value()).toFixed(2) + "%";
                 })
                .renderlet( function(chart) {
                     draw_squids();
                 })
-               .legend( dc.legend().x(groups_base_dim).y(0).gap(5) );
-
-    group_chart.select('svg')
-               .attr("width", groups_base_dim + groups_legend_width);
+               .legend( dc.legend().x(groups_base_dim).y(50).gap(10) );
 
     // Table widget for displaying failover details
     hosts_table.dimension(site_D)
