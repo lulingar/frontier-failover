@@ -74,7 +74,7 @@ q.await( function(error, config, dataset) {
            chart.selectAll(".dc-legend-item")
                 .on("click", function(d) { 
                     //TODO copy filtering functionality of pie chart
-                    site_D.filterExact(d.name);
+                    chart.dimension().filterExact(d.name);
                     chart.select(".reset")
                          .style("display", null);
                     dc.redrawAll(); 
