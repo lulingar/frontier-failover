@@ -16,8 +16,9 @@ TODO
 """
 def main():
 
+    my_path = os.path.dirname(os.path.abspath(__file__))
     geoip_database_file = "~/scripts/geolist/GeoIPOrg.dat"
-    config_file = "instance_config.json"
+    config_file = os.path.join(my_path, "instance_config.json")
 
     server_lists = "http://wlcg-squid-monitor.cern.ch/"
     geolist_file = server_lists + "geolist.txt"
