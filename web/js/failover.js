@@ -57,6 +57,7 @@ q.await( function(error, config, dataset) {
       .group(time_sites_G)
       .seriesAccessor(function(d) { return d.key[1]; })
       .keyAccessor(function(d) { return d.key[0]; })
+      .title(function(d) { return d.key[1] + ": " + d.value + " Hits"; })
       .elasticY(true)
       .elasticX(true)
       .xAxisLabel("Time")
@@ -89,6 +90,7 @@ q.await( function(error, config, dataset) {
                .dimension(group_D)
                .group(group_G)
                .ordinalColors(["#ff7f0e", "#17becf", "#2ca02c"])
+               .title(function(d) { return d.value + " Hits"; })
                .label(function (d) {
                    if (group_chart.hasFilter() && !group_chart.hasFilter(d.key))
                         return "0%";
