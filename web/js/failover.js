@@ -71,15 +71,14 @@ q.await( function(error, config, dataset) {
       .seriesSort(d3.ascending)
       .brushOn(false)
       .renderlet(function(chart) {
-           // TODO Replace d3 by using chart
-           d3.selectAll("#time-chart .dc-legend-item")
-             .on("click", function(d) { 
-                 //TODO copy filtering functionality of pie chart
-                 site_D.filterExact(d.name);
-                 d3.select("#time-chart .reset")
-                   .style("display", null);
-                 dc.redrawAll(); 
-              }); 
+           chart.selectAll(".dc-legend-item")
+                .on("click", function(d) { 
+                    //TODO copy filtering functionality of pie chart
+                    chart.filter(d.name);
+                    chart.select(".reset")
+                         .style("display", null);
+                    dc.redrawAll(); 
+                 }); 
        });
 
     // The group chart
@@ -89,6 +88,7 @@ q.await( function(error, config, dataset) {
                .innerRadius(0.3*groups_radius)
                .dimension(group_D)
                .group(group_G)
+               .ordinalColors(["#ff7f0e", "#17becf", "#2ca02c"])
                .label(function (d) {
                    if (group_chart.hasFilter() && !group_chart.hasFilter(d.key))
                         return "0%";
