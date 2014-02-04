@@ -4,19 +4,20 @@ var time_chart = seriesBarChart("#time-chart"),
     time_chart_width = time_chart.root()[0][0].parentElement.clientWidth,
     data_file = "test.csv",
     date_format = d3.time.format("%b %d, %Y %I:%M %p"),
-    ndx, all, site_D; 
+    ndx, all, site_D, period, extent_span; 
 
 var q = queue().defer(d3.json, "config.json")
                .defer(d3.csv, data_file);
 
 q.await( function(error, config, dataset) {
 
-    var period = config.history.period,
-        periodObj = minuteBunch(period),
+    period = config.history.period;
+    extent_span = 3.6e6 * config.history.span;
+
+    var periodObj = minuteBunch(period),
         periodRange = periodObj.range,
         now = new Date(),
         this_hour = periodObj(now).getTime(),
-        extent_span = 3.6e6 * config.history.span,
         extent = [new Date(this_hour - extent_span), new Date(this_hour)],
         addH = function(p, d) { return p + d["Hits"]; },
         remH = function(p, d) { return p - d["Hits"]; },
@@ -45,13 +46,7 @@ q.await( function(error, config, dataset) {
         sites_legend_space_h = 7*max_length,
         groups_radius = groups_base_dim/2 - 15;
 
-    // Display the currently plotted time span
-    d3.select("#date-start")
-      .attr("datetime", extent[0])
-      .text(date_format(extent[0]));
-    d3.select("#date-end")
-      .attr("datetime", extent[1])
-      .text(date_format(extent[1]));
+    update_time_extent(period, extent_span);
 
     // The time series
     time_chart
@@ -191,7 +186,25 @@ function reload() {
                 ndx.remove();
                 ndx.add( process_data(dataset));
                 dc.renderAll();
+                update_time_extent(period, extent_span);
             } );
+}
+
+function update_time_extent(period, extent_span) {
+
+    var periodObj = minuteBunch(period),
+        periodRange = periodObj.range,
+        now = new Date(),
+        this_hour = periodObj(now).getTime(),
+        extent = [new Date(this_hour - extent_span), new Date(this_hour)];
+
+    // Show the currently plotted time span
+    d3.select("#date-start")
+      .attr("datetime", extent[0])
+      .text(date_format(extent[0]));
+    d3.select("#date-end")
+      .attr("datetime", extent[1])
+      .text(date_format(extent[1]));
 }
 
 function time_chart_reset() {
