@@ -98,7 +98,6 @@ def analyze_failovers_to_group (config, groupname, now, past_records, geo, squid
         awdata['Sites'] = awdata['Institution'].apply(get_sites)
         #TODO: Implement exception for some French machines
 
-        awdata.set_index('Host', inplace=True)
         offending, totals_high = excess_failover_check( awdata, squids, site_rate_threshold)
     else:
         offending = None
@@ -170,7 +169,7 @@ def excess_failover_check (awdata, squids, site_rate_threshold):
     totals = by_institution[['HitsRate', 'BandwidthRate']].sum()
     totals_high = totals[ totals['HitsRate'] > site_rate_threshold ]
 
-    offending = awdata.loc[ totals_high.index ].reset_index()
+    offending = awdata[ awdata['Institution'].isin(totals_high.index) ]
     squid_alias_map = squids.set_index('Host')['Alias']
     offending['Host'][offending['IsSquid']] = offending['Host'][offending['IsSquid']].map(squid_alias_map)
 

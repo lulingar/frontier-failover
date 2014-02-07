@@ -13,4 +13,5 @@ echo "Failover Monitor starting at $(date)"
 echo
 ${CUSTOM_PYTHON_VIRTUALENV}/bin/python -W ignore::DeprecationWarning $here/hourly-monitor.py
 echo
+echo "Failover Monitor done at $(date)"
 
