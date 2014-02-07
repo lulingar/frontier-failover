@@ -89,19 +89,20 @@ def analyze_failovers_to_group (config, groupname, now, past_records, geo, squid
         return None
 
     awdata = compute_traffic_delta( awdata, last_awdata, now, last_timestamp)
+    get_sites = lambda inst: sites_from_institution(inst, geo)
 
     if len(awdata) > 0:
-        awdata.insert( 0, 'IsSquid', awdata.index.isin(squids.Host) )
-        awdata = add_institutions( awdata, geoip.get_isp)
+        awdata.reset_index(inplace=True)
+        awdata['IsSquid'] = awdata['Host'].isin(squids['Host'])
+        awdata['Institution'] = awdata['Host'].apply(geoip.get_isp)
+        awdata['Sites'] = awdata['Institution'].apply(get_sites)
+        #TODO: Implement exception for some French machines
+
+        awdata.set_index('Host', inplace=True)
         offending, totals_high = excess_failover_check( awdata, squids, site_rate_threshold)
     else:
         offending = None
         totals_high = None
-
-    #TODO: Implement exception for some French machines
-    if offending:
-        get_sites = lambda inst: sites_from_institution(inst, geo)
-        offending['Sites'] = offending['Institution'].apply(get_sites)
 
     gen_report (offending, groupname, geo, totals_high)
     failovers = update_record (offending, past_records, now, squids)
@@ -155,10 +156,9 @@ def compute_traffic_delta (now_stats, last_stats, now_timestamp, last_timestamp)
 
 def add_institutions (awstats_dataframe, isp_func):
 
-    xaw = pd.DataFrame(awstats_dataframe.reset_index()['Host'])
-    xaw['Institution'] = xaw.Host.apply(isp_func)
-    xaw.set_index('Host', inplace=True)
-    updated = pd.merge(awstats_dataframe, xaw, left_index=True, right_index=True)
+    xaw = awstats_dataframe.reset_index()
+    xaw['Institution'] = xaw['Host'].apply(isp_func)
+    updated = xaw.set_index('Host')
 
     return updated
 
@@ -170,7 +170,7 @@ def excess_failover_check (awdata, squids, site_rate_threshold):
     totals = by_institution[['HitsRate', 'BandwidthRate']].sum()
     totals_high = totals[ totals['HitsRate'] > site_rate_threshold ]
 
-    offending = awdata[ awdata['Institution'].isin(totals_high.index) ].reset_index()
+    offending = awdata.loc[ totals_high.index ].reset_index()
     squid_alias_map = squids.set_index('Host')['Alias']
     offending['Host'][offending['IsSquid']] = offending['Host'][offending['IsSquid']].map(squid_alias_map)
 
