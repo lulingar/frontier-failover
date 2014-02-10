@@ -99,9 +99,6 @@ q.await( function(error, config, dataset) {
                         return "0%";
                     return (100 * d.value / all.value()).toFixed(2) + "%";
                 })
-               .renderlet( function(chart) {
-                    draw_squids();
-                })
                .legend( dc.legend().x(groups_base_dim).y(50).gap(10) );
 
     // The host (squid/not squid) chart
@@ -113,11 +110,13 @@ q.await( function(error, config, dataset) {
                .group(squid_G)
                .title(function(d) { return d.value + " Hits"; })
                .label(function (d) {
-                   var value_str;
+                   var value_str,
+                       host_type = { true: "Squid",
+                                     false: "Worker Node" };
                    if (group_chart.hasFilter() && !group_chart.hasFilter(d.key))
                         value_str = "0%";
                     value_str = (100 * d.value / all.value()).toFixed(2) + "%";
-                    return d.key + ": " + value_str;
+                    return host_type[d.key] + ": " + value_str;
                 })
                .renderlet( function(chart) {
                     draw_squids();
