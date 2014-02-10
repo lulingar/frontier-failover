@@ -33,7 +33,11 @@ q.await( function(error, config, dataset) {
 
     var time_D = ndx.dimension( function(d) { return d["Timestamp"]; }),
         group_D = ndx.dimension( function(d) { return d["Group"]; }),
-        squid_D = ndx.dimension( function(d) { return d["IsSquid"]; }),
+        squid_D = ndx.dimension( function(d) { 
+                                   var host_type = { true: "Squid",
+                                                     false: "Worker Node" };
+                                    return host_type[d["IsSquid"]]; 
+                                  }),
         hits_D = ndx.dimension(function(d){ return d["Hits"]; }),
         time_site_D = ndx.dimension(function(d) { return [d["Timestamp"], d["Sites"]]; }),
         group_G = group_D.group().reduce(addH, remH, ini),
@@ -110,14 +114,11 @@ q.await( function(error, config, dataset) {
                .group(squid_G)
                .title(function(d) { return d.value + " Hits"; })
                .label(function (d) {
-                   var value_str,
-                       host_type = { true: "Squid",
-                                     false: "Worker Node" };
                    if (group_chart.hasFilter() && !group_chart.hasFilter(d.key))
-                        value_str = "0%";
-                    value_str = (100 * d.value / all.value()).toFixed(2) + "%";
-                    return host_type[d.key] + ": " + value_str;
+                        return "0%";
+                    return (100 * d.value / all.value()).toFixed(2) + "%";
                 })
+               .legend( dc.legend().x(groups_base_dim).y(50).gap(10) );
                .renderlet( function(chart) {
                     draw_squids();
                 });
