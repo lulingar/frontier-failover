@@ -114,11 +114,11 @@ q.await( function(error, config, dataset) {
                .group(squid_G)
                .title(function(d) { return d.value + " Hits"; })
                .label(function (d) {
-                   if (group_chart.hasFilter() && !group_chart.hasFilter(d.key))
+                   if (squid_chart.hasFilter() && !squid_chart.hasFilter(d.key))
                         return "0%";
                     return (100 * d.value / all.value()).toFixed(2) + "%";
                 })
-               .legend( dc.legend().x(groups_base_dim).y(50).gap(10) );
+               .legend( dc.legend().x(groups_base_dim).y(50).gap(10) )
                .renderlet( function(chart) {
                     draw_squids();
                 });
