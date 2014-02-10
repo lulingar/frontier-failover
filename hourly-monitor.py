@@ -19,6 +19,7 @@ def main():
     my_path = os.path.dirname(os.path.abspath(__file__))
     geoip_database_file = "~/scripts/geolist/GeoIPOrg.dat"
     config_file = os.path.join(my_path, "instance_config.json")
+    record_column_order = ('Timestamp','Sites','Group','IsSquid','Host','Alias','Hits','HitsRate','Bandwidth','BandwidthRate','Last visit')
 
     server_lists = "http://wlcg-squid-monitor.cern.ch/"
     geolist_file = server_lists + "geolist.txt"
@@ -49,7 +50,8 @@ def main():
             failover_groups.append(failover.copy())
 
     failover_record = pd.concat(failover_groups)
-    failover_record.to_csv(record_file, index=False)
+                        .reindex(columns=record_column_order)
+    failover_record.to_csv(record_file, index=False, float_format="%.2f")
 
     return 0
 
@@ -219,6 +221,7 @@ def update_record (offending, past_records, now, squids):
 
     update['Bandwidth'] = update['Bandwidth'].astype(int)
     update['Hits'] = update['Hits'].astype(int)
+    update['Last visit'] = update['Last visit'].astype(int)
 
     return update
 

@@ -105,10 +105,15 @@ q.await( function(error, config, dataset) {
     hosts_table.dimension(site_D)
                .group(function(d) { return d["Sites"]; })
                .columns([
-                    function(d) { return d["Host"]; },
+                    function(d) { 
+                        var host = d["Host"],
+                            alias = ( d["Alias"] === '' ? host : d["Alias"] );
+                        return '<span title="Host: ' + host + '">' + alias + '</span>'; 
+                    },
                     function(d) { return squid_place(d["IsSquid"]); },
                     function(d) { return d["Hits"]; },
                     function(d) { return size_natural(d["Bandwidth"]); },
+                    function(d) { return size_natural(d["BandwidthRate"]) + "/s"; },
                     function(d) { return date_format(d["Last visit"]); }
                     ])
                .sortBy(function(d) { return [d["Last visit"], d["Hits"]]; })
