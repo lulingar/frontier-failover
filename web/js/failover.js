@@ -111,12 +111,12 @@ q.await( function(error, config, dataset) {
                         return '<span title="Host: ' + host + '">' + alias + '</span>'; 
                     },
                     function(d) { return squid_place(d["IsSquid"]); },
+                    function(d) { return date_format(d["Timestamp"]); }
                     function(d) { return d["Hits"]; },
                     function(d) { return size_natural(d["Bandwidth"]); },
                     function(d) { return size_natural(d["BandwidthRate"]) + "/s"; },
-                    function(d) { return date_format(d["Last visit"]); }
                     ])
-               .sortBy(function(d) { return [d["Last visit"], d["Hits"]]; })
+               .sortBy(function(d) { return [d["Timestamp"], d["Hits"]]; })
                .order(d3.descending)
                .size(Infinity)
                .on("filtered", function(chart, filter) {
