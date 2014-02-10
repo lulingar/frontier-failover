@@ -167,7 +167,9 @@ def build_squids_list (geo_table, monitoring_table):
     mapping = {}
     for alias in squid_names:
         host = socket.getfqdn(alias)
-        if host not in mapping or alias != host:
+        if host not in mapping:
+            mapping[host] = ''
+        if alias != host:
             mapping[host] = alias
 
     squids = pd.DataFrame(mapping.items(), columns=('Host', 'Alias'))

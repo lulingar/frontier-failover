@@ -89,16 +89,23 @@ def analyze_failovers_to_group (config, groupname, now, past_records, geo, squid
         return None
 
     awdata = compute_traffic_delta( awdata, last_awdata, now, last_timestamp)
-    get_sites = lambda inst: sites_from_institution(inst, geo)
 
     if len(awdata) > 0:
+
         awdata.reset_index(inplace=True)
         awdata['IsSquid'] = awdata['Host'].isin(squids['Host'])
+
+        get_sites = lambda inst: sites_from_institution(inst, geo)
         awdata['Institution'] = awdata['Host'].apply(geoip.get_isp)
         awdata['Sites'] = awdata['Institution'].apply(get_sites)
         #TODO: Implement exception for some French machines
 
+        squid_alias_map = squids.set_index('Host')['Alias']
+        awdata['Alias'] = ''
+        awdata['Alias'][awdata['IsSquid']] = awdata['Host'][awdata['IsSquid']].map(squid_alias_map)
+
         offending, totals_high = excess_failover_check( awdata, squids, site_rate_threshold)
+
     else:
         offending = None
         totals_high = None
@@ -170,8 +177,6 @@ def excess_failover_check (awdata, squids, site_rate_threshold):
     totals_high = totals[ totals['HitsRate'] > site_rate_threshold ]
 
     offending = awdata[ awdata['Institution'].isin(totals_high.index) ]
-    squid_alias_map = squids.set_index('Host')['Alias']
-    offending['Host'][offending['IsSquid']] = offending['Host'][offending['IsSquid']].map(squid_alias_map)
 
     return offending, totals_high
 
@@ -187,8 +192,10 @@ def gen_report (offending, groupname, geo, totals_high):
 
     if len(for_report) > 0:
 
+        pd.options.display.precision = 2
         pd.options.display.width = 130
         pd.options.display.max_rows = 100
+
         print for_report.set_index(['Institution', 'IsSquid', 'Host']).sortlevel(0), "\n"
 
     else:
@@ -203,7 +210,7 @@ def update_record (offending, past_records, now, squids):
 
     to_add = offending.drop('Institution', axis=1)
     to_add['Timestamp'] = now_secs
-    to_add['IsSquid'] = to_add['Host'].isin(squids.Host)
+    to_add['IsSquid'] = to_add['Host'].isin(squids['Host'])
 
     if past_records:
         update = pd.concat([past_records, to_add])
