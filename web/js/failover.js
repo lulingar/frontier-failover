@@ -113,9 +113,11 @@ q.await( function(error, config, dataset) {
                .group(squid_G)
                .title(function(d) { return d.value + " Hits"; })
                .label(function (d) {
+                   var value_str;
                    if (group_chart.hasFilter() && !group_chart.hasFilter(d.key))
-                        return "0%";
-                    return (100 * d.value / all.value()).toFixed(2) + "%";
+                        value_str = "0%";
+                    value_str = (100 * d.value / all.value()).toFixed(2) + "%";
+                    return d.key + ": " + value_str;
                 })
                .renderlet( function(chart) {
                     draw_squids();
