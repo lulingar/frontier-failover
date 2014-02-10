@@ -10,155 +10,162 @@ var FailoverSpc = function() {
         group_chart = dc.pieChart("#group-chart"),
         squid_chart = dc.pieChart("#squid-chart"),
         hosts_table = dc.dataTable("#hosts-table"),
-        time_chart_width = time_chart.root()[0][0].parentElement.clientWidth,
         data_file = "test.csv",
         date_format = d3.time.format("%b %d, %Y %I:%M %p"),
-        ndx, all, site_D, period, extent_span; 
+        ndx, all, site_D, period, extent_span;,
+        periodObj, periodRange, now, this_hour, extent,
+        addH = function(p, d) { return p + d["Hits"]; },
+        remH = function(p, d) { return p - d["Hits"]; },
+        ini = function() { return 0; },
+        sites_legend_item_size = 20,
+        groups_base_dim = 150,
+        groups_legend_width = 200,
+        groups_radius = groups_base_dim/2 - 15,
+        time_D, group_D, squid_D, hits_D, time_site_D,
+        group_G, squid_G, time_sites_G, hits_G,
+        site_list, num_sites, site_name_lengths,
+        max_length, sites_legend_space_v, sites_legend_space_h,
+        q;
 
-    var q = queue().defer(d3.json, "config.json")
-                .defer(d3.csv, data_file);
 
-    q.await( function(error, config, dataset) {
+    function start() {
+        q = queue().defer(d3.json, "config.json")
+                   .defer(d3.csv, data_file);
+
+        q.await( function(error, config, dataset) {
 
         period = config.history.period;
         extent_span = 3.6e6 * config.history.span;
 
-        var periodObj = minuteBunch(period),
-            periodRange = periodObj.range,
-            now = new Date(),
-            this_hour = periodObj(now).getTime(),
-            extent = [new Date(this_hour - extent_span), new Date(this_hour)],
-            addH = function(p, d) { return p + d["Hits"]; },
-            remH = function(p, d) { return p - d["Hits"]; },
-            ini = function() { return 0; },
-            sites_legend_item_size = 20,
-            groups_base_dim = 150,
-            groups_legend_width = 200;
+        periodObj = minuteBunch(period),
+        periodRange = periodObj.range,
+        now = new Date(),
+        this_hour = periodObj(now).getTime(),
+        extent = [new Date(this_hour - extent_span), new Date(this_hour)],
 
         ndx = crossfilter( process_data(dataset));
         all = ndx.groupAll().reduce(addH, remH, ini);
         site_D = ndx.dimension( function(d) { return d["Sites"]; })
 
-        var time_D = ndx.dimension( function(d) { return d["Timestamp"]; }),
-            group_D = ndx.dimension( function(d) { return d["Group"]; }),
-            squid_D = ndx.dimension( function(d) { 
+        time_D = ndx.dimension( function(d) { return d["Timestamp"]; }),
+        group_D = ndx.dimension( function(d) { return d["Group"]; }),
+        squid_D = ndx.dimension( function(d) { 
                                     var host_type = { true: "Squid",
-                                                        false: "Worker Node" };
-                                        return host_type[d["IsSquid"]]; 
-                                    }),
-            hits_D = ndx.dimension(function(d){ return d["Hits"]; }),
-            time_site_D = ndx.dimension(function(d) { return [d["Timestamp"], d["Sites"]]; }),
-            group_G = group_D.group().reduce(addH, remH, ini),
-            squid_G = squid_D.group().reduce(addH, remH, ini),
-            time_sites_G = time_site_D.group().reduce(addH, remH, ini),
-            hits_G = hits_D.group().reduce(addH, remH, ini),
-            site_list = site_D.group().all().map( function(d){ return d.key; }),
-            num_sites = site_list.length,
-            site_name_lengths = site_list.map( function(s){ return s.length; }),
-            max_length = crossfilter.quicksort(site_name_lengths, 0, site_name_lengths.length)
-                                    .reverse()[0],
-            sites_legend_space_v = (1 + num_sites) * sites_legend_item_size,
-            sites_legend_space_h = 7*max_length,
-            groups_radius = groups_base_dim/2 - 15;
+                                                      false: "Worker Node" };
+                                    return host_type[d["IsSquid"]]; 
+                                }),
+        hits_D = ndx.dimension(function(d){ return d["Hits"]; }),
+        time_site_D = ndx.dimension(function(d) { return [d["Timestamp"], d["Sites"]]; }),
+        group_G = group_D.group().reduce(addH, remH, ini),
+        squid_G = squid_D.group().reduce(addH, remH, ini),
+        time_sites_G = time_site_D.group().reduce(addH, remH, ini),
+        hits_G = hits_D.group().reduce(addH, remH, ini),
+        site_list = site_D.group().all().map( function(d){ return d.key; }),
+        num_sites = site_list.length,
+        site_name_lengths = site_list.map( function(s){ return s.length; }),
+        max_length = crossfilter.quicksort(site_name_lengths, 0, site_name_lengths.length)
+                                .reverse()[0],
+        sites_legend_space_v = (1 + num_sites) * sites_legend_item_size,
+        sites_legend_space_h = 7*max_length,
+        groups_radius = groups_base_dim/2 - 15;
 
         update_time_extent(period, extent_span);
 
         // The time series
-        time_chart
-        .width(1024)
-        .height(415)
-        .margins({top: 30, right: 30+sites_legend_space_h, bottom: 30, left: 60})
-        .dimension(time_site_D)
-        .group(time_sites_G)
-        .seriesAccessor(function(d) { return d.key[1]; })
-        .keyAccessor(function(d) { return d.key[0]; })
-        .title(function(d) { return d.key[1] + ": " + d.value + " Hits"; })
-        .elasticY(true)
-        .elasticX(true)
-        .xAxisLabel("Time")
-        .yAxisLabel("Hits")
-        .x(d3.time.scale().domain(extent))
-        .xUnits(periodRange)
-        .renderHorizontalGridLines(true)
-        .legend( dc.legend()
-                .x( 1024-sites_legend_space_h ).y(10)
-                .itemWidth(150).itemHeight(sites_legend_item_size)
-                .gap(5) )
-        .seriesSort(d3.ascending)
-        .brushOn(false)
-        .renderlet(function(chart) {
-            chart.selectAll(".dc-legend-item")
-                    .on("click", function(d) { 
-                        //TODO copy filtering functionality of pie chart
-                        site_D.filterExact(d.name);
-                        chart.select(".reset")
-                            .style("display", null);
-                        dc.redrawAll(); 
-                    }); 
-        });
+        time_chart.width(1024)
+                  .height(415)
+                  .margins({top: 30, right: 30+sites_legend_space_h, bottom: 30, left: 60})
+                  .dimension(time_site_D)
+                  .group(time_sites_G)
+                  .seriesAccessor(function(d) { return d.key[1]; })
+                  .keyAccessor(function(d) { return d.key[0]; })
+                  .title(function(d) { return d.key[1] + ": " + d.value + " Hits"; })
+                  .elasticY(true)
+                  .elasticX(true)
+                  .xAxisLabel("Time")
+                  .yAxisLabel("Hits")
+                  .x(d3.time.scale().domain(extent))
+                  .xUnits(periodRange)
+                  .renderHorizontalGridLines(true)
+                  .legend( dc.legend()
+                             .x( 1024-sites_legend_space_h ).y(10)
+                             .itemWidth(150).itemHeight(sites_legend_item_size)
+                             .gap(5) )
+                  .seriesSort(d3.ascending)
+                  .brushOn(false)
+                  .renderlet(function(chart) {
+                      chart.selectAll(".dc-legend-item")
+                              .on("click", function(d) { 
+                                    site_D.filterExact(d.name);
+                                    chart.select(".reset")
+                                         .style("display", null);
+                                    dc.redrawAll(); 
+                                }); 
+                    });
 
         // The group chart
         group_chart.width(groups_base_dim)
-                .height(groups_base_dim)
-                .radius(groups_radius)
-                .innerRadius(0.3*groups_radius)
-                .dimension(group_D)
-                .group(group_G)
-                .ordinalColors(["#ff7f0e", "#17becf", "#2ca02c"])
-                .title(function(d) { return d.value + " Hits"; })
-                .label(function (d) {
-                    if (group_chart.hasFilter() && !group_chart.hasFilter(d.key))
-                            return "0%";
-                        return (100 * d.value / all.value()).toFixed(2) + "%";
-                    })
-                .legend( dc.legend().x(groups_base_dim).y(50).gap(10) );
+                    .height(groups_base_dim)
+                    .radius(groups_radius)
+                    .innerRadius(0.3*groups_radius)
+                    .dimension(group_D)
+                    .group(group_G)
+                    .ordinalColors(["#ff7f0e", "#17becf", "#2ca02c"])
+                    .title(function(d) { return d.value + " Hits"; })
+                    .label(function (d) {
+                            if (group_chart.hasFilter() && !group_chart.hasFilter(d.key))
+                                    return "0%";
+                            return (100 * d.value / all.value()).toFixed(2) + "%";
+                            })
+                    .legend( dc.legend().x(groups_base_dim).y(50).gap(10) );
 
         // The host (squid/not squid) chart
         squid_chart.width(groups_base_dim)
-                .height(groups_base_dim)
-                .radius(groups_radius)
-                .innerRadius(0.3*groups_radius)
-                .dimension(squid_D)
-                .group(squid_G)
-                .title(function(d) { return d.value + " Hits"; })
-                .label(function (d) {
-                    if (squid_chart.hasFilter() && !squid_chart.hasFilter(d.key))
-                            return "0%";
-                        return (100 * d.value / all.value()).toFixed(2) + "%";
-                    })
-                .legend( dc.legend().x(groups_base_dim).y(50).gap(10) )
-                .renderlet( function(chart) {
-                        draw_squids();
-                    });
+                    .height(groups_base_dim)
+                    .radius(groups_radius)
+                    .innerRadius(0.3*groups_radius)
+                    .dimension(squid_D)
+                    .group(squid_G)
+                    .title(function(d) { return d.value + " Hits"; })
+                    .label(function (d) {
+                        if (squid_chart.hasFilter() && !squid_chart.hasFilter(d.key))
+                                return "0%";
+                            return (100 * d.value / all.value()).toFixed(2) + "%";
+                        })
+                    .legend( dc.legend().x(groups_base_dim).y(50).gap(10) )
+                    .renderlet( function(chart) {
+                            draw_squids();
+                        });
 
         // Table widget for displaying failover details
         hosts_table.dimension(site_D)
-                .group(function(d) { return d["Sites"]; })
-                .columns([
-                        function(d) { 
-                            var host = d["Host"],
-                                alias = ( d["Alias"] === '' ? host : d["Alias"] );
-                            return '<span title="Host: ' + host + '">' + alias + '</span>'; 
-                        },
-                        function(d) { return squid_place(d["IsSquid"]); },
-                        function(d) { return date_format(d["Timestamp"]); },
-                        function(d) { return d["Hits"]; },
-                        function(d) { return size_natural(d["Bandwidth"]); },
-                        function(d) { return size_natural(d["BandwidthRate"]) + "/s"; }
-                        ])
-                .sortBy(function(d) { return [d["Timestamp"], d["Hits"]]; })
-                .order(d3.descending)
-                .size(Infinity)
-                .on("filtered", function(chart, filter) {
-                        draw_squids();
-                        })
-                .renderlet(function(table){
-                        table.selectAll(".dc-table-group").classed("info", true);
-                });
+                    .group(function(d) { return d["Sites"]; })
+                    .columns([
+                            function(d) { 
+                                var host = d["Host"],
+                                    alias = ( d["Alias"] === '' ? host : d["Alias"] );
+                                return '<span title="Host: ' + host + '">' + alias + '</span>'; 
+                            },
+                            function(d) { return squid_place(d["IsSquid"]); },
+                            function(d) { return date_format(d["Timestamp"]); },
+                            function(d) { return d["Hits"]; },
+                            function(d) { return size_natural(d["Bandwidth"]); },
+                            function(d) { return size_natural(d["BandwidthRate"]) + "/s"; }
+                            ])
+                    .sortBy(function(d) { return [d["Timestamp"], d["Hits"]]; })
+                    .order(d3.descending)
+                    .size(Infinity)
+                    .on("filtered", function(chart, filter) {
+                            draw_squids();
+                            })
+                    .renderlet(function(table){
+                            table.selectAll(".dc-table-group").classed("info", true);
+                    });
 
-        // Draw all objects
-        dc.renderAll();
-    });
+            // Draw all objects
+            dc.renderAll();
+        });
+    }
 
     function process_data(dataset) {
         var dataset = dataset;
@@ -229,19 +236,19 @@ var FailoverSpc = function() {
 
     function update_time_extent(period, extent_span) {
 
-        var periodObj = minuteBunch(period),
-            periodRange = periodObj.range,
-            now = new Date(),
-            this_hour = periodObj(now).getTime(),
-            extent = [new Date(this_hour - extent_span), new Date(this_hour)];
+        periodObj = minuteBunch(period),
+        periodRange = periodObj.range,
+        now = new Date(),
+        this_hour = periodObj(now).getTime(),
+        extent = [new Date(this_hour - extent_span), new Date(this_hour)];
 
         // Show the currently plotted time span
         d3.select("#date-start")
-        .attr("datetime", extent[0])
-        .text(date_format(extent[0]));
+          .attr("datetime", extent[0])
+          .text(date_format(extent[0]));
         d3.select("#date-end")
-        .attr("datetime", extent[1])
-        .text(date_format(extent[1]));
+          .attr("datetime", extent[1])
+          .text(date_format(extent[1]));
     }
 
     function time_chart_reset() {
@@ -249,6 +256,18 @@ var FailoverSpc = function() {
         d3.select("#time-chart .reset")
         .style("display", "none");
         dc.redrawAll(); 
+    }
+
+    return {
+        start: start,
+        reload: reload,
+        extent: extent,
+        ndx: ndx,
+        all: all,
+        time_chart: time_chart,
+        group_chart: group_chart,
+        squid_chart: squid_chart,
+        hosts_table: hosts_table
     }
 }();
 
