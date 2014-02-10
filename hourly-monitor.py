@@ -49,7 +49,7 @@ def main():
             failover['Group'] = machine_group_name
             failover_groups.append(failover.copy())
 
-    failover_record = pd.concat(failover_groups)
+    failover_record = pd.concat(failover_groups)\
                         .reindex(columns=record_column_order)
     failover_record.to_csv(record_file, index=False, float_format="%.2f")
 
