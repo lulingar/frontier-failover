@@ -1,5 +1,6 @@
 var time_chart = seriesBarChart("#time-chart"),
     group_chart = dc.pieChart("#group-chart"),
+    squid_chart = dc.pieChart("#squid-chart"),
     hosts_table = dc.dataTable("#hosts-table"),
     time_chart_width = time_chart.root()[0][0].parentElement.clientWidth,
     data_file = "test.csv",
@@ -32,9 +33,11 @@ q.await( function(error, config, dataset) {
 
     var time_D = ndx.dimension( function(d) { return d["Timestamp"]; }),
         group_D = ndx.dimension( function(d) { return d["Group"]; }),
+        squid_D = ndx.dimension( function(d) { return d["IsSquid"]; }),
         hits_D = ndx.dimension(function(d){ return d["Hits"]; }),
         time_site_D = ndx.dimension(function(d) { return [d["Timestamp"], d["Sites"]]; }),
         group_G = group_D.group().reduce(addH, remH, ini),
+        squid_G = squid_D.group().reduce(addH, remH, ini),
         time_sites_G = time_site_D.group().reduce(addH, remH, ini),
         hits_G = hits_D.group().reduce(addH, remH, ini),
         site_list = site_D.group().all().map( function(d){ return d.key; }),
@@ -100,6 +103,23 @@ q.await( function(error, config, dataset) {
                     draw_squids();
                 })
                .legend( dc.legend().x(groups_base_dim).y(50).gap(10) );
+
+    // The host (squid/not squid) chart
+    squid_chart.width(groups_base_dim)
+               .height(groups_base_dim)
+               .radius(groups_radius)
+               .innerRadius(0.3*groups_radius)
+               .dimension(squid_D)
+               .group(squid_G)
+               .title(function(d) { return d.value + " Hits"; })
+               .label(function (d) {
+                   if (group_chart.hasFilter() && !group_chart.hasFilter(d.key))
+                        return "0%";
+                    return (100 * d.value / all.value()).toFixed(2) + "%";
+                })
+               .renderlet( function(chart) {
+                    draw_squids();
+                });
 
     // Table widget for displaying failover details
     hosts_table.dimension(site_D)
