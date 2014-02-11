@@ -20,7 +20,7 @@ var FailoverClass = function() {
     this.start = function() {
 
         q = queue().defer(d3.json, "config.json")
-                   .defer(d3.csv, data_file);
+                   .defer(d3.csv, this.data_file);
 
         q.await( function(error, config, dataset) {
 
