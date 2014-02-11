@@ -1,7 +1,6 @@
-//TODO make the reset transitions as smooth as when the pie chart is effectively cleared of filters (i.e. all slices are included)
 //TODO gray-out all filtered-out items in a legend
 //TODO make a reliable sorting of the hosts-table
-//TODO add 1-hour ticks to the history chart ("time-chart")
+//TODO enforce the time region in the history chart ("time-chart")
 //TODO add zoom capability to the history chart
 
 var Failover = new function() {
@@ -67,16 +66,16 @@ var Failover = new function() {
         // The time series
         this.time_chart.width(1024)
                   .height(415)
-                  .margins({top: 30, right: 30+this.sites_legend_space_h, bottom: 30, left: 60})
+                  .margins({top: 30, right: 30+this.sites_legend_space_h, bottom: 50, left: 60})
                   .dimension(this.time_site_D)
                   .group(this.time_sites_G)
                   .seriesAccessor(function(d) { return d.key[1]; })
                   .keyAccessor(function(d) { return d.key[0]; })
                   .title(function(d) { return d.key[1] + ": " + d.value + " Hits"; })
-                  .elasticY(true)
-                  .elasticX(true)
                   .xAxisLabel("Time")
                   .yAxisLabel("Hits")
+                  .elasticY(true)
+                  .elasticX(true)
                   .x(d3.time.scale().domain(this.extent))
                   .xUnits(this.periodRange)
                   .renderHorizontalGridLines(true)
@@ -86,16 +85,25 @@ var Failover = new function() {
                              .gap(5) )
                   .seriesSort(d3.ascending)
                   .brushOn(false)
+                  .turnOnControls(false)
                   .renderlet(function(chart) {
                       chart.selectAll(".dc-legend-item")
-                              .on("click", function(d) { 
-                                  //TODO copy filtering functionality of pie chart
-                                  this.site_D.filterExact(d.name);
-                                  chart.select(".reset")
-                                       .style("display", null);
-                                  dc.redrawAll(); 
-                              }.bind(scope)); 
-                  });
+                           .on("click", function(d) { 
+                                          this.site_D.filterExact(d.name);
+                                          chart.select(".reset")
+                                               .style("display", null);
+                                          dc.redrawAll(); 
+                                       }.bind(scope) ); 
+                   })
+                  .renderlet(function(chart) {
+                      chart.selectAll("svg g g.axis.x g.tick text")
+                           .style("text-anchor", "end")
+                           .attr("dx", "-.12em")
+                           .attr("dy", ".15em")
+                           .attr("transform", function(d) { return "rotate(-90)"; });
+                   });
+
+        this.time_chart.xAxis().ticks(d3.time.hours, 2);
 
         // The group chart
         this.group_chart.width(this.groups_base_dim)
