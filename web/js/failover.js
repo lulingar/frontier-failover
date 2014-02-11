@@ -12,6 +12,10 @@ var FailoverClass = function() {
     this.hosts_table = dc.dataTable("#hosts-table");
     this.data_file = "failover.csv";
     this.date_format = d3.time.format("%b %d, %Y %I:%M %p");
+    this.sites_legend_item_size = 20;
+    this.groups_base_dim = 150;
+    this.groups_legend_width = 200;
+    this.groups_radius = this.groups_base_dim/2 - 15;
 
     this.start = function() {
 
@@ -27,32 +31,28 @@ var FailoverClass = function() {
             this.periodRange = periodObj.range;
             this.now = new Date();
             this.this_hour = periodObj(now).getTime();
-            this.extent = [new Date(this_hour - extent_span), new Date(this_hour)];
+            this.extent = [new Date(this.this_hour - this.extent_span), new Date(this.this_hour)];
             this.addH = function(p, d) { return p + d["Hits"]; };
             this.remH = function(p, d) { return p - d["Hits"]; };
             this.ini = function() { return 0; };
-            this.sites_legend_item_size = 20;
-            this.groups_base_dim = 150;
-            this.groups_legend_width = 200;
-            this.groups_radius = this.groups_base_dim/2 - 15;
 
-            this.ndx = crossfilter( process_data(dataset));
-            this.all = ndx.groupAll().reduce(addH, remH, ini);
-            this.site_D = ndx.dimension( function(d) { return d["Sites"]; })
+            this.ndx = crossfilter( this.process_data(dataset));
+            this.all = this.ndx.groupAll().reduce(this.addH, this.remH, this.ini);
+            this.site_D = this.ndx.dimension( function(d) { return d["Sites"]; })
 
-            this.time_D = ndx.dimension( function(d) { return d["Timestamp"]; });
-            this.group_D = ndx.dimension( function(d) { return d["Group"]; });
-            this.squid_D = ndx.dimension( function(d) { 
+            this.time_D = this.ndx.dimension( function(d) { return d["Timestamp"]; });
+            this.group_D = this.ndx.dimension( function(d) { return d["Group"]; });
+            this.squid_D = this.ndx.dimension( function(d) { 
                                         var host_type = { true: "Squid",
                                                           false: "Worker Node" };
                                         return host_type[d["IsSquid"]]; 
                                     });
             this.hits_D = this.ndx.dimension(function(d){ return d["Hits"]; });
             this.time_site_D = this.ndx.dimension(function(d) { return [d["Timestamp"], d["Sites"]]; });
-            this.group_G = this.group_D.group().reduce(addH, remH, ini);
-            this.squid_G = this.squid_D.group().reduce(addH, remH, ini);
-            this.time_sites_G = this.time_site_D.group().reduce(addH, remH, ini);
-            this.hits_G = this.hits_D.group().reduce(addH, remH, ini);
+            this.group_G = this.group_D.group().reduce(this.addH, this.remH, this.ini);
+            this.squid_G = this.squid_D.group().reduce(this.addH, this.remH, this.ini);
+            this.time_sites_G = this.time_site_D.group().reduce(this.addH, this.remH, this.ini);
+            this.hits_G = this.hits_D.group().reduce(this.addH, this.remH, this.ini);
             this.site_list = this.site_D.group().all().map( function(d){ return d.key; });
             this.num_sites = this.site_list.length;
             this.site_name_lengths = this.site_list.map( function(s){ return s.length; });
@@ -218,12 +218,12 @@ var FailoverClass = function() {
     }
 
     this.reload = function() {
-        d3.csv( data_file, 
+        d3.csv( this.data_file, 
                 function (error, dataset) {
-                    ndx.remove();
-                    ndx.add( process_data(dataset));
+                    this.ndx.remove();
+                    this.ndx.add( this.process_data(dataset));
                     dc.renderAll();
-                    update_time_extent(period, extent_span);
+                    this.update_time_extent(this.period, this.extent_span);
                 } );
     }
 
