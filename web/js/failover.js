@@ -4,7 +4,7 @@
 //TODO add 1-hour ticks to the history chart ("time-chart")
 //TODO add zoom capability to the history chart
 
-var FailoverClass = function() {
+var Failover = new function() {
 
     var scope = this;
     // JS weirdness: You have to append ".bind(scope)" at the end of every
@@ -158,16 +158,15 @@ var FailoverClass = function() {
 
         // Draw all objects
         dc.renderAll();
-    }
+    }.bind(this);
 
     this.start = function() {
-
         var q, proxy = this.setup.bind(this);
 
         q = queue().defer(d3.json, "config.json")
                    .defer(d3.csv, this.data_file);
         q.await(proxy);
-    }
+    }.bind(this);
 
     this.process_data = function(dataset) {
         var dataset = dataset;
@@ -183,12 +182,12 @@ var FailoverClass = function() {
         });
 
         return dataset;
-    }
+    }.bind(this);
 
     this.squid_place = function(is_squid) {
         var spec = {true: "yes", false: "no"};
         return '<div class="squid-' + spec[is_squid] + '"></div>';
-    }
+    }.bind(this);
 
     this.draw_squids = function() {
 
@@ -224,7 +223,7 @@ var FailoverClass = function() {
 
         draw_type(true);
         draw_type(false);
-    }
+    }.bind(this);
 
     this.reload = function() {
         d3.csv( this.data_file, 
@@ -234,7 +233,7 @@ var FailoverClass = function() {
                     dc.renderAll();
                     this.update_time_extent(this.period, this.extent_span);
                 }.bind(scope) );
-    }
+    }.bind(this);
 
     this.update_time_extent = function(period, extent_span) {
 
@@ -251,15 +250,14 @@ var FailoverClass = function() {
         d3.select("#date-end")
           .attr("datetime", extent[1])
           .text(this.date_format(extent[1]));
-    }
+    }.bind(this);
 
     this.time_chart_reset = function() {
         this.site_D.filterAll();
         d3.select("#time-chart .reset")
           .style("display", "none");
         dc.redrawAll(); 
-    }
+    }.bind(this);
 }
 
-var Failover = new FailoverClass();
 Failover.start();
