@@ -139,17 +139,17 @@ function size_natural (size)
 {
     if (size == 0) return "0 B";
 
-    scales = {'B': 0, 'kiB': 10, 'MiB': 20, 'GiB': 30, 'TiB': 40};
+    var scales = {'B': 0, 'kiB': 10, 'MiB': 20, 'GiB': 30, 'TiB': 40};
 
-    proportion = []
+    var proportion = []
     for (var key in scales) {
         proportion.push([Math.abs(1 - ((Math.pow(2, scales[key])) / size)), key]);
     }
     proportion.sort();
-    scale = proportion[0][1];
+    var scale = proportion[0][1];
 
-    number = size / Math.pow(2, scales[scale]);
-    size_str = number.toFixed(2) + ' ' + scale; 
+    var base_part = size / Math.pow(2, scales[scale]);
+    var size_str = base_part.toFixed(2) + ' ' + scale; 
 
     return size_str;
 }
