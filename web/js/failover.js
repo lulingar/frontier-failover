@@ -7,11 +7,12 @@ var Failover = new function() {
 
     var scope = this;
     // JS weirdness: You have to append ".bind(scope)" at the end of every
-    //  inline (aka. anonymous) function, after its closing brace, in order
+    //  member function, after its closing brace, in order
     //  to make sure any instances of "this" within the function actually
     //  reference the object, and not the Global scope (or "Window")
 
     this.time_chart = seriesBarChart("#time-chart");
+    this.time_chart_range = dc.barChart("#time-chart-range");
     this.group_chart = dc.pieChart("#group-chart");
     this.squid_chart = dc.pieChart("#squid-chart");
     this.hosts_table = dc.dataTable("#hosts-table");
@@ -64,7 +65,8 @@ var Failover = new function() {
         this.update_time_extent(this.period, this.extent_span);
 
         // The time series
-        this.time_chart.width(1024)
+        var time_chart_width = 1024;
+        this.time_chart.width(time_chart_width)
                   .height(415)
                   .margins({top: 30, right: 30+this.sites_legend_space_h, bottom: 50, left: 60})
                   .dimension(this.time_site_D)
@@ -86,6 +88,7 @@ var Failover = new function() {
                   .seriesSort(d3.ascending)
                   .brushOn(false)
                   .turnOnControls(false)
+                  .rangeChart(time_chart_range)
                   .renderlet(function(chart) {
                       chart.selectAll(".dc-legend-item")
                            .on("click", function(d) { 
@@ -104,6 +107,17 @@ var Failover = new function() {
                    });
 
         this.time_chart.xAxis().ticks(d3.time.hours, 2);
+
+        this.time_chart_range.width(time_chart_width)
+                  .height(45)
+                  .margins({top: 0, right: 50, bottom: 20, left: 40})
+                  .dimension(this.time_site_D)
+                  .group(this.time_sites_G)
+                  .keyAccessor(function(d) { return d.key[0]; })
+                  .x(d3.time.scale().domain(this.extent))
+                  .xUnits(this.periodRange)
+                  .gap(1)
+                  .centerBar(true);
 
         // The group chart
         this.group_chart.width(this.groups_base_dim)
