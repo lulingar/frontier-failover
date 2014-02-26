@@ -97,17 +97,22 @@ var Failover = new function() {
                                                .style("display", null);
                                           dc.redrawAll(); 
                                        }.bind(scope) ); 
-                   })
-                  .renderlet(function(chart) {
-                      chart.selectAll("svg g g.axis.x g.tick text")
-                           .style("text-anchor", "end")
-                           .attr("dx", "-.12em")
-                           .attr("dy", ".15em")
-                           .attr("transform", function(d) { return "rotate(-90)"; });
                    });
 
         this.time_chart.xAxis().ticks(d3.time.hours, 2);
 
+        // Add listeners to rotate labels and refresh data table
+        var rotate_fun = function(d) { 
+                return "rotate(-90) translate(-25, -12)"; 
+            };
+        var axis_tick_rotate = function(chart) { 
+                chart.selectAll("svg g g.axis.x g.tick text")
+                     .attr("transform", rotate_fun);
+            }
+        this.time_chart.on("postRedraw", axis_tick_rotate);
+        this.time_chart.on("postRender", axis_tick_rotate);
+
+        // The range controller
         this.time_chart_range.width(time_chart_width)
                   .height(45)
                   .margins({top: 0, right: 50, bottom: 20, left: 40})
