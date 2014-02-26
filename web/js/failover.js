@@ -88,7 +88,7 @@ var Failover = new function() {
                   .seriesSort(d3.ascending)
                   .brushOn(false)
                   .turnOnControls(false)
-                  .rangeChart(time_chart_range)
+                  .rangeChart(this.time_chart_range)
                   .renderlet(function(chart) {
                       chart.selectAll(".dc-legend-item")
                            .on("click", function(d) { 
