@@ -44,7 +44,7 @@ def load_awstats_data (machine, day=None):
 
     return dataframe
 
-def load_aggregated_awstats_data (machines, day=None):
+def download_aggregated_awstats_data (machines, day=None):
 
     data = {}
     for machine in machines:
@@ -166,16 +166,15 @@ def patch_geo_table (geo, MO_view, actions, geoip):
     MO_eview = MO_eview.merge(actions.reset_index(), how='left', on='Site')\
                        .fillna('')\
                        .drop('Site', axis='columns')\
-                       .rename(columns={'Base': 'Site'})\
-                       .sort('Site')
-    MO_eview['Institution'] = MO_eview['Host'].apply(geoip.get_isp)
+                       .rename(columns={'Base': 'Site'})
     MO_eview = MO_eview[ MO_eview.Action != '-' ]
-    to_add = MO_eview[ ~(MO_eview.Host.isin(geo.Host) | MO_eview.Host.isin(geo.Alias)) ]
+    MO_eview['Institution'] = MO_eview['Host'].apply(geoip.get_isp)
+    to_add = MO_eview[ ~(MO_eview.Host.isin(geo.Host) | MO_eview.Host.isin(geo.Alias)) ].copy()
     to_add.drop(['Action', 'Spec'], axis='columns', inplace=True)
     new_geo_entries = [ gen_geo_entry(spec['Host'], spec['Institution'], spec['Site'])
                        for spec in to_add.to_dict('records') ]
     geo_app = pd.DataFrame( sum(new_geo_entries, []) )
-    new_geo = pd.concat([geo, geo_app])
+    new_geo = pd.concat([geo, geo_app], ignore_index=True)
 
     return new_geo
 
@@ -214,6 +213,19 @@ def build_squids_list (geo_table):
     squids = pd.DataFrame(mapping.items(), columns=('Host', 'Alias'))
 
     return squids
+
+def sites_from_institution (institution, geo):
+
+    geolist_name_func = lambda s: s.encode('utf-8', 'ignore').replace(' ', '')
+
+    sites = geo[ geo['Institution'] == geolist_name_func(institution) ]['Site'].unique().tolist()
+
+    if not sites:
+        site_list = institution
+    else:
+        site_list = ', '.join(sites)
+
+    return site_list
 
 def simple_get_host_ipv4 (hostname):
 

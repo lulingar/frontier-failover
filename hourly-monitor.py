@@ -29,19 +29,16 @@ def main():
     json.dump(config, open(config_file, 'w'), indent=3)
 
     geoip = fl.GeoIPWrapper( os.path.expanduser( geoip_database_file))
-    geo = fl.parse_geolist( fl.get_url( geolist_file))
+    geo_0 = fl.parse_geolist( fl.get_url( geolist_file))
     actions, WN_view, MO_view = fl.parse_exceptionlist( fl.get_url( exception_list_file))
-    geo = fl.patch_geo_table(geo, MO_view, actions, geoip)
+    geo = fl.patch_geo_table(geo_0, MO_view, actions, geoip)
     squids = fl.build_squids_list(geo)
     now = datetime.utcnow()
 
-    groups = config['groups']
-    record_file = config['record_file']
-    record_span = config['history']['span']
-    current_records = load_records(record_file, now, record_span)
+    current_records = load_records(config['record_file'], now, config['history']['span'])
     failover_groups = []
 
-    for machine_group_name in groups.keys():
+    for machine_group_name in config['groups'].keys():
 
         past_records = get_group_records(current_records, machine_group_name)
         failover = analyze_failovers_to_group( config, machine_group_name, now,
@@ -50,9 +47,9 @@ def main():
             failover['Group'] = machine_group_name
             failover_groups.append(failover.copy())
 
-    failover_record = pd.concat(failover_groups)\
+    failover_record = pd.concat(failover_groups, ignore_index=True)\
                         .reindex(columns=print_column_order)
-    failover_record.to_csv(record_file, index=False, float_format="%.2f")
+    failover_record.to_csv(config['record_file'], index=False, float_format="%.2f")
 
     return 0
 
@@ -84,7 +81,7 @@ def analyze_failovers_to_group (config, groupname, now, past_records, geo, squid
     last_stats_file = groupconf['file_last_stats']
     site_rate_threshold = groupconf['rate_threshold']   # Unit: Queries/sec
 
-    awdata = fl.load_aggregated_awstats_data(instances)
+    awdata = fl.download_aggregated_awstats_data(instances)
     last_timestamp, last_awdata = load_last_data(last_stats_file)
     save_last_data(last_stats_file, awdata, now)
 
@@ -102,7 +99,7 @@ def analyze_failovers_to_group (config, groupname, now, past_records, geo, squid
         #  only invoke geoip.getlist for non-squids
         awdata['Institution'] = awdata['Host'].apply(geoip.get_isp)
 
-        get_sites = lambda inst: sites_from_institution(inst, geo)
+        get_sites = lambda inst: fl.sites_from_institution(inst, geo)
         awdata['Sites'] = awdata['Institution'].apply(get_sites)
 
         #TODO: Implement IP exception for some French machines
@@ -229,19 +226,6 @@ def update_record (offending, past_records, now, squids):
     update['Last visit'] = update['Last visit'].astype(int)
 
     return update
-
-def sites_from_institution (institution, geo):
-
-    geolist_name_func = lambda s: s.encode('utf-8', 'ignore').replace(' ', '')
-
-    sites = geo[ geo['Institution'] == geolist_name_func(institution) ]['Site'].unique().tolist()
-
-    if not sites:
-        site_list = institution
-    else:
-        site_list = ', '.join(sites)
-
-    return site_list
 
 if __name__ == "__main__":
     sys.exit(main())
