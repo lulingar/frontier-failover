@@ -23,7 +23,8 @@ def to_bytes (sz):
 def load_awstats_data (machine, day=None):
 
     server = "http://frontier.cern.ch/"
-    url = "awstats/awstats.pl?config={instance}&databasebreak=day&day={day:d}&framename=mainright&output=allhosts"
+    url = ("awstats/awstats.pl?config={instance}&databasebreak=day"
+           "&day={day:02d}&framename=mainright&output=allhosts")
 
     if not day:
         day = datetime.today().day
@@ -98,7 +99,7 @@ def gen_geo_entry (squid_hostname, institution, site):
     else:
         protocol, listed_host_name, port = host_data
 
-    ip_addresses = simple_get_host_ipv4 (listed_host_name)
+    ip_addresses = simple_get_hosts_ipv4_addrs (listed_host_name)
     is_dns = (len(ip_addresses) > 1)
 
     entries = []
@@ -162,7 +163,7 @@ def parse_exceptionlist (exceptionlist_data):
 def patch_geo_table (geo, MO_view, actions, geoip):
 
     MO_eview = MO_view.copy()
-    MO_eview['Base'], MO_eview['Spec'] = zip(*MO_eview['Site'].map(site_name_split))
+    MO_eview['Base'], MO_eview['Spec'] = zip(*MO_eview['Site'].map(_site_name_split))
     MO_eview = MO_eview.merge(actions.reset_index(), how='left', on='Site')\
                        .fillna('')\
                        .drop('Site', axis='columns')\
@@ -172,62 +173,40 @@ def patch_geo_table (geo, MO_view, actions, geoip):
     to_add = MO_eview[ ~(MO_eview.Host.isin(geo.Host) | MO_eview.Host.isin(geo.Alias)) ].copy()
     to_add.drop(['Action', 'Spec'], axis='columns', inplace=True)
     new_geo_entries = [ gen_geo_entry(spec['Host'], spec['Institution'], spec['Site'])
-                       for spec in to_add.to_dict('records') ]
+                        for spec in to_add.to_dict('records') ]
     geo_app = pd.DataFrame( sum(new_geo_entries, []) )
     new_geo = pd.concat([geo, geo_app], ignore_index=True)
 
     return new_geo
 
-def site_name_split (site_name):
+# Get a Worker node's parent site list through GeoIP
+def assign_site_workernode (host, squids_inst_site_map, geoip):
 
-    parts = site_name.split('_', 3)
-    base = '_'.join(parts[:3])
-    if len(parts) == 3:
-        extra = ''
-    else:
-        if len(parts[3]) > 2:
-            extra = ''
-            base = site_name
-        else:
-            extra = parts[3]
+    if host == '127.0.0.1' or host == 'localhost':
+        return 'localhost'
 
-    return base, extra
+    institution = geoip.get_isp(host)
+    try:
+        site = squids_inst_site_map[institution]
+    except KeyError:
+        site = institution
 
-def build_squids_list (geo_table):
+    return site
 
-    non_dns = geo_table[~geo_table.IsDNS].Host
-    squid_names = set( non_dns.tolist() )
+def tag_hosts (data, host_ip_field, squids_institute_sites_map, squids_ip_sites_map, geo, geoip):
 
-    """
-    Build Host->Alias mapping, with cases where the alias differs
-    overruling cases where the alias is the same as the host name.
-    """
-    mapping = {}
-    for alias in squid_names:
-        host = socket.getfqdn(alias)
-        if host not in mapping:
-            mapping[host] = ''
-        if alias != host:
-            mapping[host] = alias
+    data['IsSquid'] = data[host_ip_field].isin(geo['Ip'])
+    data['Sites'] = ''
 
-    squids = pd.DataFrame(mapping.items(), columns=('Host', 'Alias'))
+    #TODO: Implement IP exception for some French machines
 
-    return squids
+    data['Sites'][data['IsSquid']] = data[host_ip_field][data['IsSquid']].map(squids_ip_sites_map)
+    wn_fun = lambda ip: fl.assign_site_workernode(ip, squids_institute_sites_map, geoip)
+    data['Sites'][~data['IsSquid']] = data[host_ip_field][~data['IsSquid']].apply(wn_fun)
 
-def sites_from_institution (institution, geo):
+    return data
 
-    geolist_name_func = lambda s: s.encode('utf-8', 'ignore').replace(' ', '')
-
-    sites = geo[ geo['Institution'] == geolist_name_func(institution) ]['Site'].unique().tolist()
-
-    if not sites:
-        site_list = institution
-    else:
-        site_list = ', '.join(sites)
-
-    return site_list
-
-def simple_get_host_ipv4 (hostname):
+def simple_get_hosts_ipv4_addrs (hostname):
 
     if is_a_valid_ip (hostname):
         return [hostname]
@@ -254,6 +233,21 @@ def get_dns_addresses (hostname):
     info = socket.getaddrinfo( hostname, 0, socket.AF_INET)
     return set( e[4][0] for e in info )
 
+def parse_timestamp_column (series):
+
+    epoch_ns = pd.to_datetime(series) - datetime(1970,1,1)
+    epoch = epoch_ns.astype(int) / int(1e9)
+
+    return epoch
+
+def get_squid_host_alias_map (geo_table):
+
+    SHA_map = geo_table[['Host', 'Alias']][~geo_table.IsDNS].drop_duplicates()
+    SHA_map['Host'] = SHA_map['Host'].str.lower()
+    SHA_map['Alias'][SHA_map.Host == SHA_map.Alias] = ''
+
+    return SHA_map.set_index('Host')['Alias']
+
 class GeoIPWrapper(object):
 
     def __init__ (self, geoip_db_file):
@@ -272,12 +266,67 @@ class GeoIPWrapper(object):
 
         return isp
 
-def parse_timestamp_column (series):
+class CMSTagger(object):
 
-    epoch_ns = pd.to_datetime(series) - datetime(1970,1,1)
-    epoch = epoch_ns.astype(int) / int(1e9)
+    def __init__ (self, geo_table, geoip):
 
-    return epoch
+        self.geo = geo_table
+        self.geoip = geoip
+
+        Sqd_Ip_Site_df = geo[['Site', 'Ip']][~( (geo['Ip'] == '0.0.0.0') | geo['IsDNS'] )]
+        self.squids_ip_sites_map = self._compact_sites(Sqd_Ip_Site_df)
+
+        Sqd_Insti_Site_df = geo[['Institution', 'Site']]
+        self.squids_institute_sites_map = self._compact_sites(Sqd_Insti_Site_df)
+        self.squids_institute_sites_map['Unknown'] = 'Unknown'
+
+    def tag_hosts (self, data):
+        return tag_hosts( data, 'Ip', self.squids_institute_sites_map,
+                          self.squids_ip_sites_map, self.geo, self.geoip )
+
+    def _compact_sites (self, geo_slice):
+
+        other_field = geo_slice.columns.diff(['Site'])[0]
+        slice_cp = geo_slice.drop_duplicates()
+
+        slice_cp['Tier'], slice_cp['BaseSite'] = zip(*slice_cp['Site'].apply(self._site_base_split))
+        ab = slice_cp.groupby([other_field, 'BaseSite'])\
+                    .apply(self._tier_join)\
+                    .reset_index()
+        ab['Compacted'] = ab['AllTiers']+ '_' + ab['BaseSite']
+        compacted = ab.groupby(other_field).apply( lambda group: ', '.join(group['Compacted'].tolist()))
+
+        return compacted
+
+    def _site_name_split (self, site_name):
+
+        parts = site_name.split('_', 3)
+        base = '_'.join(parts[:3])
+        if len(parts) == 3:
+            extra = ''
+        else:
+            if len(parts[3]) > 2:
+                extra = ''
+                base = site_name
+            else:
+                extra = parts[3]
+
+        return base, extra
+
+    def _site_base_split (self, site_name):
+
+        tier, country, acronym = site_name.split('_', 2)
+        return tier, country + '_' + acronym
+
+    def _tier_join (group):
+
+        tiers = group['Tier'].tolist()
+        if len(tiers) > 1:
+            out = '{%s}' % ','.join(sorted(tiers))
+        else:
+            out = tiers[0]
+
+        return pd.Series({'AllTiers': out})
 
 if __name__ == "__main__":
 
@@ -287,7 +336,6 @@ if __name__ == "__main__":
 
     geo = parse_geolist( get_url( geolist_file))
     actions, WN_view, MO_view = parse_exceptionlist( get_url( exception_list_file))
-    squids = build_squids_list(geo, MO_view)
 
-    print squids
+    print load_awstats_data('cmsfrontier')
 

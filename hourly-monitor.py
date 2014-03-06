@@ -23,17 +23,20 @@ def main():
     geolist_file = server_lists + "geolist.txt"
     exception_list_file = server_lists + "exceptionlist.txt"
 
-    print_column_order = ('Timestamp','Sites','Group','IsSquid','Host','Alias','Hits','HitsRate','Bandwidth','BandwidthRate','Last visit')
+    print_column_order = ('Timestamp','Sites','Group','IsSquid','Host','Alias',
+                          'Hits','HitsRate','Bandwidth','BandwidthRate',
+                          'Last visit')
 
     config = json.load( open(config_file))
     json.dump(config, open(config_file, 'w'), indent=3)
 
+    now = datetime.utcnow()
     geoip = fl.GeoIPWrapper( os.path.expanduser( geoip_database_file))
+
     actions, WN_view, MO_view = fl.parse_exceptionlist( fl.get_url( exception_list_file))
     geo_0 = fl.parse_geolist( fl.get_url( geolist_file))
     geo = fl.patch_geo_table(geo_0, MO_view, actions, geoip)
-    squids = fl.build_squids_list(geo)
-    now = datetime.utcnow()
+    cms_tagger = fl.CMSTagger(geo, geoip)
 
     current_records = load_records(config['record_file'], now, config['history']['span'])
     failover_groups = []
@@ -42,7 +45,7 @@ def main():
 
         past_records = get_group_records(current_records, machine_group_name)
         failover = analyze_failovers_to_group( config, machine_group_name, now,
-                                               past_records, geo, squids, geoip )
+                                               past_records, geo, cms_tagger )
         if isinstance(failover, pd.DataFrame):
             failover['Group'] = machine_group_name
             failover_groups.append(failover.copy())
@@ -73,7 +76,7 @@ def get_group_records (records, group_name):
     else:
         return None
 
-def analyze_failovers_to_group (config, groupname, now, past_records, geo, squids, geoip):
+def analyze_failovers_to_group (config, groupname, now, past_records, geo, tagger_object):
 
     groupconf = config['groups'][groupname]
 
@@ -93,29 +96,21 @@ def analyze_failovers_to_group (config, groupname, now, past_records, geo, squid
     if len(awdata) > 0:
 
         awdata.reset_index(inplace=True)
-        awdata['IsSquid'] = awdata['Host'].isin(squids['Host'])
+        awdata['Ip'] = awdata['Host'].apply(get_host_ipv4_addr)
+        awdata = tagger_object.tag_hosts(awdata)
 
-        # TODO Optimization: Get institution from geo for squids;
-        #  only invoke geoip.getlist for non-squids
-        awdata['Institution'] = awdata['Host'].apply(geoip.get_isp)
-
-        get_sites = lambda inst: fl.sites_from_institution(inst, geo)
-        awdata['Sites'] = awdata['Institution'].apply(get_sites)
-
-        #TODO: Implement IP exception for some French machines
-
-        squid_alias_map = squids.set_index('Host')['Alias']
+        squid_alias_map = fl.get_squid_host_alias_map(geo)
         awdata['Alias'] = ''
         awdata['Alias'][awdata['IsSquid']] = awdata['Host'][awdata['IsSquid']].map(squid_alias_map)
 
-        offending, totals_high = excess_failover_check( awdata, squids, site_rate_threshold)
+        offending, totals_high = excess_failover_check(awdata, site_rate_threshold)
 
     else:
         offending = None
         totals_high = None
 
     gen_report (offending, groupname, geo, totals_high)
-    failovers = update_record (offending, past_records, now, squids)
+    failovers = update_record (offending, past_records, now, geo)
 
     return failovers
 
@@ -127,6 +122,7 @@ def load_last_data (last_stats_file):
         fobj.close()
 
         last_awdata = pd.read_csv(last_stats_file, skiprows=1, index_col=0)
+        last_awdata['Ip'] = last_awdata['Host'].apply(get_host_ipv4_addr)
 
     else:
         last_awdata = None
@@ -140,6 +136,10 @@ def save_last_data (last_stats_file, data, timestamp):
     fobj.write( str(datetime_to_UTC_epoch(timestamp)) + '\n' )
     data.to_csv(fobj)
     fobj.close()
+
+def get_host_ipv4_addr (host):
+
+    return fl.simple_get_hosts_ipv4_addrs(host)[0]
 
 def datetime_to_UTC_epoch (dt):
 
@@ -164,23 +164,15 @@ def compute_traffic_delta (now_stats, last_stats, now_timestamp, last_timestamp)
 
     return table
 
-def add_institutions (awstats_dataframe, isp_func):
-
-    xaw = awstats_dataframe.reset_index()
-    xaw['Institution'] = xaw['Host'].apply(isp_func)
-    updated = xaw.set_index('Host')
-
-    return updated
-
-def excess_failover_check (awdata, squids, site_rate_threshold):
+def excess_failover_check (awdata, site_rate_threshold):
 
     non_squid_stats = awdata[ ~awdata['IsSquid'] ]
-    by_institution = non_squid_stats.groupby('Institution')
+    by_sites = non_squid_stats.groupby('Sites')
 
-    totals = by_institution[['HitsRate', 'BandwidthRate']].sum()
+    totals = by_sites[['HitsRate', 'BandwidthRate']].sum()
     totals_high = totals[ totals['HitsRate'] > site_rate_threshold ]
 
-    offending = awdata[ awdata['Institution'].isin(totals_high.index) ]
+    offending = awdata[ awdata['Sites'].isin(totals_high.index) ]
 
     return offending, totals_high
 
@@ -200,24 +192,24 @@ def gen_report (offending, groupname, geo, totals_high):
         pd.options.display.width = 130
         pd.options.display.max_rows = 100
 
-        print for_report.set_index(['Institution', 'IsSquid', 'Host']).sortlevel(0), "\n"
+        print for_report.set_index(['Sites', 'IsSquid', 'Host']).sortlevel(0), "\n"
 
     else:
         print " None.\n"
 
-def update_record (offending, past_records, now, squids):
+def update_record (offending, past_records, now, geo):
 
     now_secs = datetime_to_UTC_epoch(now)
 
     if offending is None:
         return
 
-    to_add = offending.drop('Institution', axis=1)
+    to_add = offending.copy()
     to_add['Timestamp'] = now_secs
-    to_add['IsSquid'] = to_add['Host'].isin(squids['Host'])
+    to_add['IsSquid'] = to_add['Ip'].isin(geo['Ip'])
 
     if past_records:
-        update = pd.concat([past_records, to_add])
+        update = pd.concat([past_records, to_add], ignore_index=True)
     else:
         update = to_add
 
