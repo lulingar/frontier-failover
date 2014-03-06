@@ -29,8 +29,8 @@ def main():
     json.dump(config, open(config_file, 'w'), indent=3)
 
     geoip = fl.GeoIPWrapper( os.path.expanduser( geoip_database_file))
-    geo_0 = fl.parse_geolist( fl.get_url( geolist_file))
     actions, WN_view, MO_view = fl.parse_exceptionlist( fl.get_url( exception_list_file))
+    geo_0 = fl.parse_geolist( fl.get_url( geolist_file))
     geo = fl.patch_geo_table(geo_0, MO_view, actions, geoip)
     squids = fl.build_squids_list(geo)
     now = datetime.utcnow()
