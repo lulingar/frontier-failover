@@ -201,7 +201,7 @@ def tag_hosts (data, host_ip_field, squids_institute_sites_map, squids_ip_sites_
     #TODO: Implement IP exception for some French machines
 
     data['Sites'][data['IsSquid']] = data[host_ip_field][data['IsSquid']].map(squids_ip_sites_map)
-    wn_fun = lambda ip: fl.assign_site_workernode(ip, squids_institute_sites_map, geoip)
+    wn_fun = lambda ip: assign_site_workernode(ip, squids_institute_sites_map, geoip)
     data['Sites'][~data['IsSquid']] = data[host_ip_field][~data['IsSquid']].apply(wn_fun)
 
     return data
@@ -273,15 +273,17 @@ class CMSTagger(object):
         self.geo = geo_table
         self.geoip = geoip
 
-        Sqd_Ip_Site_df = geo[['Site', 'Ip']][~( (geo['Ip'] == '0.0.0.0') | geo['IsDNS'] )]
+        valid_squids = ~( (self.geo['Ip'] == '0.0.0.0') | self.geo['IsDNS'] )
+        Sqd_Ip_Site_df = self.geo[['Site', 'Ip']][valid_squids]
         self.squids_ip_sites_map = self._compact_sites(Sqd_Ip_Site_df)
 
-        Sqd_Insti_Site_df = geo[['Institution', 'Site']]
+        Sqd_Insti_Site_df = self.geo[['Institution', 'Site']]
         self.squids_institute_sites_map = self._compact_sites(Sqd_Insti_Site_df)
         self.squids_institute_sites_map['Unknown'] = 'Unknown'
 
-    def tag_hosts (self, data):
-        return tag_hosts( data, 'Ip', self.squids_institute_sites_map,
+    def tag_hosts (self, data, host_ip_field):
+
+        return tag_hosts( data, host_ip_field, self.squids_institute_sites_map,
                           self.squids_ip_sites_map, self.geo, self.geoip )
 
     def _compact_sites (self, geo_slice):
@@ -318,7 +320,7 @@ class CMSTagger(object):
         tier, country, acronym = site_name.split('_', 2)
         return tier, country + '_' + acronym
 
-    def _tier_join (group):
+    def _tier_join (self, group):
 
         tiers = group['Tier'].tolist()
         if len(tiers) > 1:
