@@ -172,7 +172,7 @@ def patch_geo_table (geo, MO_view, actions, geoip):
     MO_eview = MO_eview[ MO_eview.Action != '-' ]
     to_add = MO_eview[ ~(MO_eview.Host.isin(geo.Host) | MO_eview.Host.isin(geo.Alias)) ]
     to_add.drop(['Action', 'Spec'], axis='columns', inplace=True)
-    new_geo_entries = [ fl.gen_geo_entry(spec['Host'], spec['Institution'], spec['Site'])
+    new_geo_entries = [ gen_geo_entry(spec['Host'], spec['Institution'], spec['Site'])
                        for spec in to_add.to_dict('records') ]
     geo_app = pd.DataFrame( sum(new_geo_entries, []) )
     new_geo = pd.concat([geo, geo_app])
