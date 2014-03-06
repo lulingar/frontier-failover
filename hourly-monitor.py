@@ -12,27 +12,28 @@ import FailoverLib as fl
 
 """
 TODO
-     Implement exception for some French machines
+     See comments in the code for TODO items
 """
 def main():
 
     my_path = os.path.dirname(os.path.abspath(__file__))
     geoip_database_file = "~/scripts/geolist/GeoIPOrg.dat"
     config_file = os.path.join(my_path, "instance_config.json")
-    record_column_order = ('Timestamp','Sites','Group','IsSquid','Host','Alias','Hits','HitsRate','Bandwidth','BandwidthRate','Last visit')
-
     server_lists = "http://wlcg-squid-monitor.cern.ch/"
     geolist_file = server_lists + "geolist.txt"
     exception_list_file = server_lists + "exceptionlist.txt"
 
-    geo = fl.parse_geolist( fl.get_url( geolist_file))
-    actions, WN_view, MO_view = fl.parse_exceptionlist( fl.get_url( exception_list_file))
-    squids = fl.build_squids_list(geo, MO_view)
-    geoip = fl.GeoIPWrapper( os.path.expanduser( geoip_database_file))
-    now = datetime.utcnow()
+    print_column_order = ('Timestamp','Sites','Group','IsSquid','Host','Alias','Hits','HitsRate','Bandwidth','BandwidthRate','Last visit')
 
     config = json.load( open(config_file))
     json.dump(config, open(config_file, 'w'), indent=3)
+
+    geoip = fl.GeoIPWrapper( os.path.expanduser( geoip_database_file))
+    geo = fl.parse_geolist( fl.get_url( geolist_file))
+    actions, WN_view, MO_view = fl.parse_exceptionlist( fl.get_url( exception_list_file))
+    geo = fl.patch_geo_table(geo, MO_view, actions, geoip)
+    squids = fl.build_squids_list(geo)
+    now = datetime.utcnow()
 
     groups = config['groups']
     record_file = config['record_file']
@@ -50,7 +51,7 @@ def main():
             failover_groups.append(failover.copy())
 
     failover_record = pd.concat(failover_groups)\
-                        .reindex(columns=record_column_order)
+                        .reindex(columns=print_column_order)
     failover_record.to_csv(record_file, index=False, float_format="%.2f")
 
     return 0
@@ -97,10 +98,14 @@ def analyze_failovers_to_group (config, groupname, now, past_records, geo, squid
         awdata.reset_index(inplace=True)
         awdata['IsSquid'] = awdata['Host'].isin(squids['Host'])
 
-        get_sites = lambda inst: sites_from_institution(inst, geo)
+        # TODO Optimization: Get institution from geo for squids;
+        #  only invoke geoip.getlist for non-squids
         awdata['Institution'] = awdata['Host'].apply(geoip.get_isp)
+
+        get_sites = lambda inst: sites_from_institution(inst, geo)
         awdata['Sites'] = awdata['Institution'].apply(get_sites)
-        #TODO: Implement exception for some French machines
+
+        #TODO: Implement IP exception for some French machines
 
         squid_alias_map = squids.set_index('Host')['Alias']
         awdata['Alias'] = ''

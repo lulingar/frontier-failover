@@ -84,32 +84,39 @@ def parse_geolist (geolistdata):
         proxies = set( e[4].strip(';DIRECT').replace(';','|').split('|') )
 
         for proxy in proxies:
-            host_data = proxy.replace('/','').split(':')
-            if len(host_data) == 1:
-                listed_host_name = host_data[0]
-                protocol = port = ''
-            else:
-                protocol, listed_host_name, port = host_data
-
-            ip_addresses = simple_get_host_ipv4 (listed_host_name)
-            is_dns = (len(ip_addresses) > 1)
-
-            for ip in ip_addresses:
-
-                if ip == '0.0.0.0':
-                    host_name = listed_host_name
-                else:
-                    host_name = socket.getfqdn(ip)
-
-                squids.append({'Institution': institution,
-                               'Site': site,
-                               'Host': host_name,
-                               'Alias': listed_host_name,
-                               'Ip': ip,
-                               'Port': port,
-                               'IsDNS': is_dns})
+            host_name = proxy.replace('/','')
+            squids.extend( gen_geo_entry(host_name, institution, site) )
 
     return pd.DataFrame(squids)
+
+def gen_geo_entry (squid_hostname, institution, site):
+
+    host_data = squid_hostname.split(':')
+    if len(host_data) == 1:
+        listed_host_name = host_data[0]
+        protocol = port = ''
+    else:
+        protocol, listed_host_name, port = host_data
+
+    ip_addresses = simple_get_host_ipv4 (listed_host_name)
+    is_dns = (len(ip_addresses) > 1)
+
+    entries = []
+    for ip in ip_addresses:
+
+        if ip == '0.0.0.0':
+            host_name = listed_host_name
+        else:
+            host_name = socket.getfqdn(ip)
+
+        entries.append({'Institution': institution,
+                        'Site': site,
+                        'Host': host_name,
+                        'Alias': listed_host_name,
+                        'Ip': ip,
+                        'Port': port,
+                        'IsDNS': is_dns})
+    return entries
 
 def parse_exceptionlist (exceptionlist_data):
 
@@ -152,13 +159,45 @@ def parse_exceptionlist (exceptionlist_data):
 
     return actions, workernode_view, monitoring_view
 
-def build_squids_list (geo_table, monitoring_table):
+def patch_geo_table (geo, MO_view, actions, geoip):
+
+    MO_eview = MO_view.copy()
+    MO_eview['Base'], MO_eview['Spec'] = zip(*MO_eview['Site'].map(site_name_split))
+    MO_eview = MO_eview.merge(actions.reset_index(), how='left', on='Site')\
+                       .fillna('')\
+                       .drop('Site', axis='columns')\
+                       .rename(columns={'Base': 'Site'})\
+                       .sort('Site')
+    MO_eview['Institution'] = MO_eview['Host'].apply(geoip.get_isp)
+    MO_eview = MO_eview[ MO_eview.Action != '-' ]
+    to_add = MO_eview[ ~(MO_eview.Host.isin(geo.Host) | MO_eview.Host.isin(geo.Alias)) ]
+    to_add.drop(['Action', 'Spec'], axis='columns', inplace=True)
+    new_geo_entries = [ fl.gen_geo_entry(spec['Host'], spec['Institution'], spec['Site'])
+                       for spec in to_add.to_dict('records') ]
+    geo_app = pd.DataFrame( sum(new_geo_entries, []) )
+    new_geo = pd.concat([geo, geo_app])
+
+    return new_geo
+
+def site_name_split (site_name):
+
+    parts = site_name.split('_', 3)
+    base = '_'.join(parts[:3])
+    if len(parts) == 3:
+        extra = ''
+    else:
+        if len(parts[3]) > 2:
+            extra = ''
+            base = site_name
+        else:
+            extra = parts[3]
+
+    return base, extra
+
+def build_squids_list (geo_table):
 
     non_dns = geo_table[~geo_table.IsDNS].Host
     squid_names = set( non_dns.tolist() )
-
-    # Assumption: hostnames in the monitoring view are not DNSs
-    squid_names.update( monitoring_table.Host.tolist() )
 
     """
     Build Host->Alias mapping, with cases where the alias differs
@@ -230,12 +269,13 @@ def parse_timestamp_column (series):
 
 if __name__ == "__main__":
 
-    import time
+    server_lists = "http://wlcg-squid-monitor.cern.ch/"
+    geolist_file = server_lists + "geolist.txt"
+    exception_list_file = server_lists + "exceptionlist.txt"
 
-    tic = time.time()
-    ret = parse_geolist( get_url( "http://wlcg-squid-monitor.cern.ch/geolist.txt"))
-    time_new = time.time() - tic
+    geo = parse_geolist( get_url( geolist_file))
+    actions, WN_view, MO_view = parse_exceptionlist( get_url( exception_list_file))
+    squids = build_squids_list(geo, MO_view)
 
-    print time_new
-    print ret
+    print squids
 
