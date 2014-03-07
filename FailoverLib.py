@@ -163,7 +163,7 @@ def parse_exceptionlist (exceptionlist_data):
 def patch_geo_table (geo, MO_view, actions, geoip):
 
     MO_eview = MO_view.copy()
-    MO_eview['Base'], MO_eview['Spec'] = zip(*MO_eview['Site'].map(_site_name_split))
+    MO_eview['Base'], MO_eview['Spec'] = zip(*MO_eview['Site'].map(cms_site_name_split))
     MO_eview = MO_eview.merge(actions.reset_index(), how='left', on='Site')\
                        .fillna('')\
                        .drop('Site', axis='columns')\
@@ -193,8 +193,9 @@ def assign_site_workernode (host, squids_inst_site_map, geoip):
 
     return site
 
-def tag_hosts (data, host_ip_field, squids_institute_sites_map, squids_ip_sites_map, geo, geoip):
+def tag_hosts (dataframe, host_ip_field, squids_institute_sites_map, squids_ip_sites_map, geo, geoip):
 
+    data = dataframe.copy()
     data['IsSquid'] = data[host_ip_field].isin(geo['Ip'])
     data['Sites'] = ''
 
@@ -300,21 +301,6 @@ class CMSTagger(object):
 
         return compacted
 
-    def _site_name_split (self, site_name):
-
-        parts = site_name.split('_', 3)
-        base = '_'.join(parts[:3])
-        if len(parts) == 3:
-            extra = ''
-        else:
-            if len(parts[3]) > 2:
-                extra = ''
-                base = site_name
-            else:
-                extra = parts[3]
-
-        return base, extra
-
     def _site_base_split (self, site_name):
 
         tier, country, acronym = site_name.split('_', 2)
@@ -329,6 +315,21 @@ class CMSTagger(object):
             out = tiers[0]
 
         return pd.Series({'AllTiers': out})
+
+def cms_site_name_split (site_name):
+
+    parts = site_name.split('_', 3)
+    base = '_'.join(parts[:3])
+    if len(parts) == 3:
+        extra = ''
+    else:
+        if len(parts[3]) > 2:
+            extra = ''
+            base = site_name
+        else:
+            extra = parts[3]
+
+    return base, extra
 
 if __name__ == "__main__":
 
