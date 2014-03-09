@@ -11,7 +11,7 @@ from datetime import datetime
 
 def to_bytes (sz):
 
-    factors = {'bytes': 0, 'kb': 10, 'mb': 20, 'gb': 30, 'tb': 40}
+    factors = {'b': 0, 'bytes': 0, 'kb': 10, 'mb': 20, 'gb': 30, 'tb': 40}
 
     if sz == '0': return 0
 
@@ -31,17 +31,22 @@ def load_awstats_data (machine, day=None):
 
     aw_url = server + url.format(instance=machine, day=day)
     dataframe = pd.read_html( aw_url, header = 0,
-                              attrs = {'class': 'aws_data'},
-                              infer_types = False )[1]
+                              attrs = {'class': 'aws_data'})[1]
 
-    stats = dataframe.columns[0]
-    dataframe.rename(columns = {stats: 'Host'}, inplace=True)
+    if isinstance(dataframe, pd.DataFrame):
 
-    del dataframe['Pages'] # Because it is identical to 'Hits'
+        stats = dataframe.columns[0]
+        dataframe.rename(columns = {stats: 'Host'}, inplace=True)
 
-    dataframe['Hits'] = dataframe['Hits'].map(int)
-    dataframe['Bandwidth'] = dataframe['Bandwidth'].map(to_bytes).astype(int)
-    dataframe['Last visit'] = parse_timestamp_column(dataframe['Last visit'])
+        del dataframe['Pages'] # Because it is identical to 'Hits'
+
+        dataframe['Hits'] = dataframe['Hits'].astype(int)
+        dataframe['Bandwidth'] = dataframe['Bandwidth'].map(to_bytes).astype(int)
+        dataframe['Last visit'] = parse_timestamp_column(dataframe['Last visit'])
+
+    else:
+        dataframe = pd.DataFrame(None,
+                                 columns=('Host', 'Hits', 'Bandwidth', 'Last visit'))
 
     return dataframe
 
@@ -86,11 +91,11 @@ def parse_geolist (geolistdata):
 
         for proxy in proxies:
             host_name = proxy.replace('/','')
-            squids.extend( gen_geo_entry(host_name, institution, site) )
+            squids.extend( gen_geo_entries(host_name, institution, site) )
 
     return pd.DataFrame(squids)
 
-def gen_geo_entry (squid_hostname, institution, site):
+def gen_geo_entries (squid_hostname, institution, site):
 
     host_data = squid_hostname.split(':')
     if len(host_data) == 1:
@@ -99,7 +104,7 @@ def gen_geo_entry (squid_hostname, institution, site):
     else:
         protocol, listed_host_name, port = host_data
 
-    ip_addresses = simple_get_hosts_ipv4_addrs (listed_host_name)
+    ip_addresses = simple_get_hosts_ipv4_addrs(listed_host_name)
     is_dns = (len(ip_addresses) > 1)
 
     entries = []
@@ -172,7 +177,7 @@ def patch_geo_table (geo, MO_view, actions, geoip):
     MO_eview['Institution'] = MO_eview['Host'].apply(geoip.get_isp)
     to_add = MO_eview[ ~(MO_eview.Host.isin(geo.Host) | MO_eview.Host.isin(geo.Alias)) ].copy()
     to_add.drop(['Action', 'Spec'], axis='columns', inplace=True)
-    new_geo_entries = [ gen_geo_entry(spec['Host'], spec['Institution'], spec['Site'])
+    new_geo_entries = [ gen_geo_entries(spec['Host'], spec['Institution'], spec['Site'])
                         for spec in to_add.to_dict('records') ]
     geo_app = pd.DataFrame( sum(new_geo_entries, []) )
     new_geo = pd.concat([geo, geo_app], ignore_index=True)
