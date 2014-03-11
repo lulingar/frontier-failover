@@ -8,6 +8,7 @@ import pandas as pd
 import pygeoip
 
 from datetime import datetime
+from functools import partial
 
 def to_bytes (sz):
 
@@ -174,7 +175,7 @@ def patch_geo_table (geo, MO_view, actions, geoip):
                        .drop('Site', axis='columns')\
                        .rename(columns={'Base': 'Site'})
     MO_eview = MO_eview[ MO_eview.Action != '-' ]
-    MO_eview['Institution'] = MO_eview['Host'].apply(geoip.get_isp)
+    MO_eview['Institution'] = MO_eview['Host'].apply(geoip.org_by_name)
     to_add = MO_eview[ ~(MO_eview.Host.isin(geo.Host) | MO_eview.Host.isin(geo.Alias)) ].copy()
     to_add.drop(['Action', 'Spec'], axis='columns', inplace=True)
     new_geo_entries = [ gen_geo_entries(spec['Host'], spec['Institution'], spec['Site'])
@@ -184,33 +185,33 @@ def patch_geo_table (geo, MO_view, actions, geoip):
 
     return new_geo
 
+def tag_hosts (dataframe, host_ip_field, squids_institute_sites_map, squids_ip_sites_map, geo, geoip):
+
+    data = dataframe.copy()
+    data['Sites'] = ''
+    wn_fun = partial(assign_site_workernode, squids_inst_site_map=squids_institute_sites_map,
+                                             geoip=geoip )
+    #TODO: Implement IP exception for some French machines
+
+    data['Sites'][data['IsSquid']] = data[host_ip_field][data['IsSquid']].map(squids_ip_sites_map)
+    data['Sites'][~data['IsSquid']] = data[host_ip_field][~data['IsSquid']].apply(wn_fun)
+
+    return data
+
 # Get a Worker node's parent site list through GeoIP
 def assign_site_workernode (host, squids_inst_site_map, geoip):
 
-    if host == '127.0.0.1' or host == 'localhost':
+    if host in ('127.0.0.1', 'localhost', 'localhost6', '::1'):
         return 'localhost'
 
-    institution = geoip.get_isp(host)
+    institution = geoip.org_by_addr(host)
+
     try:
         site = squids_inst_site_map[institution]
     except KeyError:
         site = institution
 
     return site
-
-def tag_hosts (dataframe, host_ip_field, squids_institute_sites_map, squids_ip_sites_map, geo, geoip):
-
-    data = dataframe.copy()
-    data['IsSquid'] = data[host_ip_field].isin(geo['Ip'])
-    data['Sites'] = ''
-
-    #TODO: Implement IP exception for some French machines
-
-    data['Sites'][data['IsSquid']] = data[host_ip_field][data['IsSquid']].map(squids_ip_sites_map)
-    wn_fun = lambda ip: assign_site_workernode(ip, squids_institute_sites_map, geoip)
-    data['Sites'][~data['IsSquid']] = data[host_ip_field][~data['IsSquid']].apply(wn_fun)
-
-    return data
 
 def simple_get_hosts_ipv4_addrs (hostname):
 
@@ -254,23 +255,30 @@ def get_squid_host_alias_map (geo_table):
 
     return SHA_map.set_index('Host')['Alias']
 
+def safe_geo_fun (host_id, geo_fun):
+
+    try:
+        isp_uc = unicode(geo_fun(host_id), errors='ignore').encode('utf-8')
+        # Spaces are removed in the geolist
+        isp = isp_uc.replace(' ', '')
+
+    except:
+        isp = 'Unknown'
+
+    return isp
+
 class GeoIPWrapper(object):
 
     def __init__ (self, geoip_db_file):
 
-        self.geoip = pygeoip.GeoIP(geoip_db_file)
+        self.geoip = pygeoip.GeoIP(geoip_db_file,
+                                   flags=pygeoip.MEMORY_CACHE)
 
-    def get_isp (self, host):
+        self.org_by_addr = partial(safe_geo_fun,
+                                   geo_fun=self.geoip.org_by_addr)
 
-        try:
-            isp = self.geoip.org_by_name(host)\
-                      .encode('ascii', 'ignore')\
-                      .replace(' ', '')  # Spaces are removed in the geolist
-
-        except (socket.gaierror, AttributeError):
-            isp = 'Unknown'
-
-        return isp
+        self.org_by_name = partial(safe_geo_fun,
+                                   geo_fun=self.geoip.org_by_name)
 
 class CMSTagger(object):
 
@@ -297,29 +305,17 @@ class CMSTagger(object):
         other_field = geo_slice.columns.diff(['Site'])[0]
         slice_cp = geo_slice.drop_duplicates()
 
-        slice_cp['Tier'], slice_cp['BaseSite'] = zip(*slice_cp['Site'].apply(self._site_base_split))
-        ab = slice_cp.groupby([other_field, 'BaseSite'])\
-                    .apply(self._tier_join)\
-                    .reset_index()
-        ab['Compacted'] = ab['AllTiers']+ '_' + ab['BaseSite']
-        compacted = ab.groupby(other_field).apply( lambda group: ', '.join(group['Compacted'].tolist()))
+        x = slice_cp['Site'].str.split('_', 2)
+        slice_cp['BaseSite'] = x.str.get(1) + '_' + x.str.get(2)
+        slice_cp['Tier'] =  x.str.get(0)
+
+        z = slice_cp.groupby([other_field, 'BaseSite'])['Tier']
+        w = z.agg( lambda df: ",".join(sorted(df.values)) ).reset_index(level='BaseSite')
+        w['Site'] = w['Tier'] + '_' + w['BaseSite']
+
+        compacted = w.groupby(level=other_field)['Site'].agg( lambda df: "; ".join(sorted(df.values)) )
 
         return compacted
-
-    def _site_base_split (self, site_name):
-
-        tier, country, acronym = site_name.split('_', 2)
-        return tier, country + '_' + acronym
-
-    def _tier_join (self, group):
-
-        tiers = group['Tier'].tolist()
-        if len(tiers) > 1:
-            out = '{%s}' % ','.join(sorted(tiers))
-        else:
-            out = tiers[0]
-
-        return pd.Series({'AllTiers': out})
 
 def cms_site_name_split (site_name):
 
