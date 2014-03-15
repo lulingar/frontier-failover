@@ -207,7 +207,7 @@ def update_record (offending, past_records, now, geo):
     to_add['Timestamp'] = now_secs
     to_add['IsSquid'] = to_add['Ip'].isin(geo['Ip'])
 
-    if past_records:
+    if isinstance(past_records, pd.DataFrame):
         update = pd.concat([past_records, to_add], ignore_index=True)
     else:
         update = to_add
