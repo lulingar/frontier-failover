@@ -24,8 +24,7 @@ def main():
     exception_list_file = server_lists + "exceptionlist.txt"
 
     print_column_order = ('Timestamp','Sites','Group','IsSquid','Host','Alias',
-                          'Hits','HitsRate','Bandwidth','BandwidthRate',
-                          'Last visit')
+                          'Hits','HitsRate','Bandwidth','BandwidthRate')
 
     config = json.load( open(config_file))
     json.dump(config, open(config_file, 'w'), indent=3)
@@ -214,7 +213,6 @@ def update_record (offending, past_records, now, geo):
 
     update['Bandwidth'] = update['Bandwidth'].astype(int)
     update['Hits'] = update['Hits'].astype(int)
-    update['Last visit'] = update['Last visit'].astype(int)
 
     return update
 
