@@ -82,7 +82,7 @@ def analyze_failovers_to_group (config, groupname, now, past_records, geo, tagge
 
     instances = groupconf['instances']
     last_stats_file = groupconf['file_last_stats']
-    site_rate_threshold = groupconf['rate_threshold']   # Unit: Queries/sec
+    site_rate_threshold = groupconf['rate_threshold']        # Unit: Queries/sec
 
     awdata = fl.download_aggregated_awstats_data(instances)
     last_timestamp, last_awdata = load_last_data(last_stats_file)
@@ -95,21 +95,18 @@ def analyze_failovers_to_group (config, groupname, now, past_records, geo, tagge
 
     if len(awdata) > 0:
 
-        awdata.reset_index(inplace=True)
-        awdata['Ip'] = awdata['Host'].apply(get_host_ipv4_addr)
         awdata = tagger_object.tag_hosts(awdata)
 
         squid_alias_map = fl.get_squid_host_alias_map(geo)
         awdata['Alias'] = ''
         awdata['Alias'][awdata['IsSquid']] = awdata['Host'][awdata['IsSquid']].map(squid_alias_map)
 
-        offending, totals_high = excess_failover_check(awdata, site_rate_threshold)
+        offending = excess_failover_check(awdata, site_rate_threshold)
 
     else:
         offending = None
-        totals_high = None
 
-    gen_report (offending, groupname, geo, totals_high)
+    gen_report (offending, groupname, geo)
     failovers = update_record (offending, past_records, now, geo)
 
     return failovers
@@ -121,8 +118,8 @@ def load_last_data (last_stats_file):
         last_timestamp = datetime.utcfromtimestamp( int( fobj.next().strip()))
         fobj.close()
 
-        last_awdata = pd.read_csv(last_stats_file, skiprows=1, index_col=0)
-        last_awdata['Ip'] = last_awdata['Host'].apply(get_host_ipv4_addr)
+        last_awdata = pd.read_csv(last_stats_file, skiprows=1)
+        last_awdata['Ip'] = last_awdata['Host'].apply(fl.get_host_ipv4_addr)
 
     else:
         last_awdata = None
@@ -134,21 +131,20 @@ def save_last_data (last_stats_file, data, timestamp):
 
     fobj = open(last_stats_file, 'w')
     fobj.write( str(datetime_to_UTC_epoch(timestamp)) + '\n' )
-    data.to_csv(fobj)
+    data.to_csv(fobj, index=False)
     fobj.close()
-
-def get_host_ipv4_addr (host):
-
-    return fl.simple_get_hosts_ipv4_addrs(host)[0]
 
 def datetime_to_UTC_epoch (dt):
 
     return calendar.timegm( dt.utctimetuple())
 
-def compute_traffic_delta (now_stats, last_stats, now_timestamp, last_timestamp):
+def compute_traffic_delta (now_stats_indexless, last_stats_indexless, now_timestamp, last_timestamp):
 
     delta_t = datetime_to_UTC_epoch(now_timestamp) - datetime_to_UTC_epoch(last_timestamp)
     cols = ['Hits', 'Bandwidth']
+
+    now_stats = now_stats_indexless.set_index('Ip')
+    last_stats = last_stats_indexless.set_index('Ip')
 
     # Get the deltas and rates of Hits and Bandwidth of recently updated/added hosts
     deltas = now_stats[cols] - last_stats[cols]
@@ -169,14 +165,14 @@ def excess_failover_check (awdata, site_rate_threshold):
     non_squid_stats = awdata[ ~awdata['IsSquid'] ]
     by_sites = non_squid_stats.groupby('Sites')
 
-    totals = by_sites[['HitsRate', 'BandwidthRate']].sum()
+    totals = by_sites['HitsRate'].agg('sum')
     totals_high = totals[ totals['HitsRate'] > site_rate_threshold ]
 
     offending = awdata[ awdata['Sites'].isin(totals_high.index) ]
 
-    return offending, totals_high
+    return offending
 
-def gen_report (offending, groupname, geo, totals_high):
+def gen_report (offending, groupname, geo):
 
     print "Failover activity to %s:" % groupname
 

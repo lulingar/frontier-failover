@@ -39,11 +39,11 @@ def load_awstats_data (machine, day=None):
         stats = dataframe.columns[0]
         dataframe.rename(columns = {stats: 'Host'}, inplace=True)
 
-        del dataframe['Pages'] # Because it is identical to 'Hits'
+        del dataframe['Pages']               # Because it is identical to 'Hits'
+        del dataframe['Last visit']        # Most of the time is not useful info
 
         dataframe['Hits'] = dataframe['Hits'].astype(int)
         dataframe['Bandwidth'] = dataframe['Bandwidth'].map(to_bytes).astype(int)
-        dataframe['Last visit'] = parse_timestamp_column(dataframe['Last visit'])
 
     else:
         dataframe = pd.DataFrame(None,
@@ -60,10 +60,12 @@ def download_aggregated_awstats_data (machines, day=None):
     panel = pd.Panel(data)
     frame = panel.transpose(minor='items', items='minor', major='major')\
                  .to_frame(filter_observations=True)
-    aggregated = frame.groupby(level=0).agg( {'Last visit': max,
-                                              'Hits': sum,
+    aggregated = frame.groupby(level=0).agg( {'Hits': sum,
                                               'Bandwidth': sum})
     aggregated.index.name = 'Host'
+    aggregated.reset_index(inplace=True)
+
+    aggregated['Ip'] = aggregated['Host'].apply(get_host_ipv4_addr)
 
     return aggregated
 
@@ -226,6 +228,10 @@ def simple_get_hosts_ipv4_addrs (hostname):
 
     return ip
 
+def get_host_ipv4_addr (host):
+
+    return simple_get_hosts_ipv4_addrs(host)[0]
+
 def is_a_valid_ip (address):
 
     parts = address.split('.')
@@ -311,9 +317,9 @@ class CMSTagger(object):
 
         z = slice_cp.groupby([other_field, 'BaseSite'])['Tier']
         w = z.agg( lambda df: ",".join(sorted(df.values)) ).reset_index(level='BaseSite')
-        w['Site'] = w['Tier'] + '_' + w['BaseSite']
+        w['Sites'] = w['Tier'] + '_' + w['BaseSite']
 
-        compacted = w.groupby(level=other_field)['Site'].agg( lambda df: "; ".join(sorted(df.values)) )
+        compacted = w.groupby(level=other_field)['Sites'].agg( lambda df: "; ".join(sorted(df.values)) )
 
         return compacted
 
