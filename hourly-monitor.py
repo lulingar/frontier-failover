@@ -164,8 +164,8 @@ def excess_failover_check (awdata, site_rate_threshold):
     non_squid_stats = awdata[ ~awdata['IsSquid'] ]
     by_sites = non_squid_stats.groupby('Sites')
 
-    totals = by_sites['HitsRate'].agg('sum')
-    totals_high = totals[ totals['HitsRate'] > site_rate_threshold ]
+    totals = by_sites['HitsRate'].sum()
+    totals_high = totals[ totals > site_rate_threshold ]
 
     offending = awdata[ awdata['Sites'].isin(totals_high.index) ]
 
