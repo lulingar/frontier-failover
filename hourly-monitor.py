@@ -96,12 +96,11 @@ def analyze_failovers_to_group (config, groupname, now, past_records, geo, tagge
     if len(awdata) > 0:
 
         awdata = tagger_object.tag_hosts(awdata)
+        offending = excess_failover_check(awdata, site_rate_threshold)
 
         squid_alias_map = fl.get_squid_host_alias_map(geo)
-        awdata['Alias'] = ''
-        awdata['Alias'][awdata['IsSquid']] = awdata['Host'][awdata['IsSquid']].map(squid_alias_map)
-
-        offending = excess_failover_check(awdata, site_rate_threshold)
+        offending['Alias'] = ''
+        offending['Alias'][offending['IsSquid']] = offending['Host'][offending['IsSquid']].map(squid_alias_map)
 
     else:
         offending = None
