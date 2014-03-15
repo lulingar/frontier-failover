@@ -157,7 +157,7 @@ def compute_traffic_delta (now_stats_indexless, last_stats_indexless, now_timest
                      .join([deltas, rates])\
                      .dropna()                  # Drop hosts that were not updated
 
-    return table
+    return table.reset_index()
 
 def excess_failover_check (awdata, site_rate_threshold):
 
