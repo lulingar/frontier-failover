@@ -95,6 +95,7 @@ def analyze_failovers_to_group (config, groupname, now, past_records, geo, tagge
 
     if len(awdata) > 0:
 
+        awdata['IsSquid'] = awdata['Ip'].isin(geo['Ip'])
         awdata = tagger_object.tag_hosts(awdata, 'Ip')
         offending = excess_failover_check(awdata, site_rate_threshold)
 
