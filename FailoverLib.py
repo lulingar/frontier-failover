@@ -268,7 +268,7 @@ def safe_geo_fun (host_id, geo_fun):
         # Spaces are removed in the geolist
         isp = isp_uc.replace(' ', '')
 
-    except (socket.gaierror):
+    except (socket.gaierror, AttributeError):
         isp = 'Unknown'
 
     return isp
