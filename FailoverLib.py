@@ -264,11 +264,11 @@ def get_squid_host_alias_map (geo_table):
 def safe_geo_fun (host_id, geo_fun):
 
     try:
-        isp_uc = unicode(geo_fun(host_id), errors='ignore').encode('utf-8')
+        isp_uc = geo_fun(host_id).encode('utf-8', 'ignore')
         # Spaces are removed in the geolist
         isp = isp_uc.replace(' ', '')
 
-    except:
+    except (socket.gaierror):
         isp = 'Unknown'
 
     return isp
