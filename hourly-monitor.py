@@ -172,7 +172,11 @@ def excess_failover_check (awdata, site_rate_threshold):
 
     offending = awdata[ awdata['Sites'].isin(totals_high.index) ]
 
-    return offending
+    reduced_stats = non_squid_stats.groupby('Sites', group_keys=False)\
+                                   .apply(reduce_to_rank, column='HitsRate', ranks=10)
+    offending_reduced = reduced_stats[ reduced_stats['Sites'].isin(totals_high.index) ]
+
+    return offending, offending_reduced
 
 def gen_report (offending, groupname, geo):
 
@@ -215,6 +219,21 @@ def update_record (offending, past_records, now, geo):
     update['Hits'] = update['Hits'].astype(int)
 
     return update
+
+def reduce_to_rank (dataframe, column='algo', ranks=5):
+
+    if len(dataframe) <= ranks:
+        return dataframe
+
+    df = dataframe.sort_index(by=column, ascending=False)
+
+    #TODO: Figure how to apply a different function per column
+    out_of_rank = df[ranks:].sum(axis=0)
+    reduced = df[:ranks].T.copy()
+    reduced['Others'] = out_of_rank
+
+    return reduced.T
+
 
 if __name__ == "__main__":
     sys.exit(main())
