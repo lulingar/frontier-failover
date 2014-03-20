@@ -51,7 +51,7 @@ def main():
 
     failover_record = pd.concat(failover_groups, ignore_index=True)\
                         .reindex(columns=print_column_order)
-    failover_record.to_csv(config['record_file'], index=False, float_format="%.2f")
+    write_failover_record (failover_record)
 
     return 0
 
@@ -172,11 +172,27 @@ def excess_failover_check (awdata, site_rate_threshold):
 
     offending = awdata[ awdata['Sites'].isin(totals_high.index) ]
 
-    reduced_stats = non_squid_stats.groupby('Sites', group_keys=False)\
-                                   .apply(reduce_to_rank, column='HitsRate', ranks=10)
-    offending_reduced = reduced_stats[ reduced_stats['Sites'].isin(totals_high.index) ]
+    return offending
 
-    return offending, offending_reduced
+def reduce_to_rank (dataframe, columns, ranks=5):
+
+    reduction_ops = {'Sites': pd.np.max}
+
+    if len(dataframe) <= ranks:
+        return dataframe
+
+    df = dataframe.sort_index(by=columns, ascending=False)
+
+    out_of_rank = df[ranks:]
+
+    all_reduction_ops = dict( (field, pd.np.sum) for field in df.columns )
+    all_reduction_ops.update(reduction_ops)
+
+    reduced = df[:ranks].T.copy()
+    reduced['Others'] = pd.Series( dict( (field, func(out_of_rank[field])) for field, func in
+                                    all_reduction_ops.items() ))
+
+    return reduced.T
 
 def gen_report (offending, groupname, geo):
 
@@ -220,20 +236,19 @@ def update_record (offending, past_records, now, geo):
 
     return update
 
-def reduce_to_rank (dataframe, column='algo', ranks=5):
+def write_failover_record (failover_record, config):
 
-    if len(dataframe) <= ranks:
-        return dataframe
+    file_path = config['record_file']
+    reduced_file_parts = file_path.split('.')
+    reduced_file_parts.insert(len(reduced_file_parts)-1, 'reduced')
+    reduced_file_path = '.'.join(reduced_file_parts)
 
-    df = dataframe.sort_index(by=column, ascending=False)
+    grouping = ['Sites', 'IsSquid']
+    reduced_stats = failover_record.groupby(grouping, group_keys=False)\
+                                   .apply(reduce_to_rank, column='HitsRate', ranks=12)
 
-    #TODO: Figure how to apply a different function per column
-    out_of_rank = df[ranks:].sum(axis=0)
-    reduced = df[:ranks].T.copy()
-    reduced['Others'] = out_of_rank
-
-    return reduced.T
-
+    failover_record.to_csv(file_path, index=False, float_format="%.2f")
+    reduced_stats.to_csv(reduced_file_path, index=False, float_format="%.2f")
 
 if __name__ == "__main__":
     sys.exit(main())
