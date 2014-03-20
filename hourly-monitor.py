@@ -243,7 +243,7 @@ def write_failover_record (failover_record, config):
     reduced_file_parts.insert(len(reduced_file_parts)-1, 'reduced')
     reduced_file_path = '.'.join(reduced_file_parts)
 
-    grouping = ['Sites', 'IsSquid']
+    grouping = ['Group', 'Sites', 'IsSquid']
     reduced_stats = failover_record.groupby(grouping, group_keys=False)\
                                    .apply(reduce_to_rank, column='HitsRate', ranks=12)
 
