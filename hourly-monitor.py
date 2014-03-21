@@ -149,14 +149,14 @@ def compute_traffic_delta (now_stats_indexless, last_stats_indexless, now_timest
 
     # Get the deltas and rates of Hits and Bandwidth of recently updated/added hosts
     deltas = pd.np.subtract( *now_stats[cols].align(last_stats[cols], join='left') )
-    # Filter out hosts whose recent activity is null
-    deltas = deltas[ deltas[cols[0]] > 0 ]
     # The deltas of newly recorded hosts are their very data values
     deltas.fillna( now_stats[cols], inplace=True )
-    rates = deltas.copy() / float(delta_t)
+    # Filter out hosts whose recent activity is null
+    deltas = deltas[ deltas['Hits'] > 0 ]
 
     # Add computed columns to table, dropping the original columns since they
     # are a long-running accumulation.
+    rates = deltas.copy() / float(delta_t)
     rates.rename(columns = lambda x: x + "Rate", inplace=True)
     table = now_stats.drop(cols, axis=1)\
                      .join([deltas, rates])
@@ -226,30 +226,31 @@ def write_failover_record (failover_record, config):
     reduced_file_path = '.'.join(reduced_file_parts)
 
     grouping = ['Group', 'Sites', 'IsSquid']
+    field_ops = dict( (field, pd.np.sum) for field in
+                       ('Hits', 'HitsRate', 'Bandwidth', 'BandwidthRate') )
+
     reduced_stats = failover_record.groupby(grouping, group_keys=False)\
-                                   .apply(reduce_to_rank, columns='HitsRate', ranks=12)
+                                   .apply(reduce_to_rank, columns='HitsRate',
+                                          ranks=12, reduction_ops=field_ops)
 
     failover_record.to_csv(file_path, index=False, float_format="%.2f")
     reduced_stats.to_csv(reduced_file_path, index=False, float_format="%.2f")
 
-def reduce_to_rank (dataframe, columns, ranks=5):
-
-    reduction_ops = dict( (field, pd.np.sum) for field in ('Hits', 'HitsRate', 'Bandwidth', 'BandwidthRate') )
+def reduce_to_rank (dataframe, columns, ranks=5, reduction_ops={}):
 
     if len(dataframe) <= ranks:
         return dataframe
 
     df = dataframe.sort_index(by=columns, ascending=False)
 
-    out_of_rank = df[ranks:]
-
     all_reduction_ops = dict( (field, pd.np.max) for field in df.columns )
     all_reduction_ops.update(reduction_ops)
 
     reduced = df[:ranks].T.copy()
+    out_of_rank = df[ranks:]
     reduced['Others'] = pd.Series( dict( (field, func(out_of_rank[field])) for field, func in
                                     all_reduction_ops.items() ))
-    return reduced.T
+    return reduced.T.copy()
 
 if __name__ == "__main__":
     sys.exit(main())
