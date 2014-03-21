@@ -149,6 +149,8 @@ def compute_traffic_delta (now_stats_indexless, last_stats_indexless, now_timest
 
     # Get the deltas and rates of Hits and Bandwidth of recently updated/added hosts
     deltas = pd.np.subtract( *now_stats[cols].align(last_stats[cols], join='left') )
+    # Filter out hosts whose recent activity is null
+    deltas = deltas[ deltas[cols[0]] > 0 ]
     # The deltas of newly recorded hosts are their very data values
     deltas.fillna( now_stats[cols], inplace=True )
     rates = deltas.copy() / float(delta_t)
