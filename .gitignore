@@ -1,5 +1,6 @@
 *.swp
-./test/config.json
+*.pyc
+./web/config.json
 ./test/js/dc.js
 ./test/js/crossfilter.js
 ./test/js/env-data.js

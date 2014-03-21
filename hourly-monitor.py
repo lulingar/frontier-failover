@@ -49,9 +49,10 @@ def main():
             failover['Group'] = machine_group_name
             failover_groups.append(failover.copy())
 
-    failover_record = pd.concat(failover_groups, ignore_index=True)\
-                        .reindex(columns=print_column_order)
-    write_failover_record (failover_record, config)
+    if len(failover_groups):
+        failover_record = pd.concat(failover_groups, ignore_index=True)\
+                            .reindex(columns=print_column_order)
+        write_failover_record (failover_record, config['record_file'])
 
     return 0
 
@@ -218,9 +219,8 @@ def update_record (offending, past_records, now, geo):
 
     return update
 
-def write_failover_record (failover_record, config):
+def write_failover_record (failover_record, file_path):
 
-    file_path = config['record_file']
     reduced_file_parts = file_path.split('.')
     reduced_file_parts.insert(len(reduced_file_parts)-1, 'reduced')
     reduced_file_path = '.'.join(reduced_file_parts)
@@ -231,12 +231,13 @@ def write_failover_record (failover_record, config):
 
     reduced_stats = failover_record.groupby(grouping, group_keys=False)\
                                    .apply(reduce_to_rank, columns='HitsRate',
-                                          ranks=12, reduction_ops=field_ops)
+                                          ranks=12, reduction_ops=field_ops,
+                                          tagged_fields=['Host', 'Alias'])
 
     failover_record.to_csv(file_path, index=False, float_format="%.2f")
     reduced_stats.to_csv(reduced_file_path, index=False, float_format="%.2f")
 
-def reduce_to_rank (dataframe, columns, ranks=5, reduction_ops={}):
+def reduce_to_rank (dataframe, columns, ranks=5, reduction_ops={}, tagged_fields=[]):
 
     if len(dataframe) <= ranks:
         return dataframe
@@ -248,8 +249,12 @@ def reduce_to_rank (dataframe, columns, ranks=5, reduction_ops={}):
 
     reduced = df[:ranks].T.copy()
     out_of_rank = df[ranks:]
-    reduced['Others'] = pd.Series( dict( (field, func(out_of_rank[field])) for field, func in
-                                    all_reduction_ops.items() ))
+    to_add = pd.Series( dict( (field, func(out_of_rank[field])) for field, func in
+                         all_reduction_ops.items() ))
+    if len(tagged_fields):
+        to_add[tagged_fields] = 'Others'
+    reduced['Others'] = to_add
+
     return reduced.T.copy()
 
 if __name__ == "__main__":
