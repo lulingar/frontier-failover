@@ -174,26 +174,6 @@ def excess_failover_check (awdata, site_rate_threshold):
 
     return offending
 
-def reduce_to_rank (dataframe, columns, ranks=5):
-
-    reduction_ops = {'Sites': pd.np.max}
-
-    if len(dataframe) <= ranks:
-        return dataframe
-
-    df = dataframe.sort_index(by=columns, ascending=False)
-
-    out_of_rank = df[ranks:]
-
-    all_reduction_ops = dict( (field, pd.np.sum) for field in df.columns )
-    all_reduction_ops.update(reduction_ops)
-
-    reduced = df[:ranks].T.copy()
-    reduced['Others'] = pd.Series( dict( (field, func(out_of_rank[field])) for field, func in
-                                    all_reduction_ops.items() ))
-
-    return reduced.T
-
 def gen_report (offending, groupname, geo):
 
     print "Failover activity to %s:" % groupname
@@ -249,6 +229,25 @@ def write_failover_record (failover_record, config):
 
     failover_record.to_csv(file_path, index=False, float_format="%.2f")
     reduced_stats.to_csv(reduced_file_path, index=False, float_format="%.2f")
+
+def reduce_to_rank (dataframe, columns, ranks=5):
+
+    reduction_ops = dict( (field, pd.np.sum) for field in ('Hits', 'HitsRate', 'Bandwidth', 'BandwidthRate') )
+
+    if len(dataframe) <= ranks:
+        return dataframe
+
+    df = dataframe.sort_index(by=columns, ascending=False)
+
+    out_of_rank = df[ranks:]
+
+    all_reduction_ops = dict( (field, pd.np.max) for field in df.columns )
+    all_reduction_ops.update(reduction_ops)
+
+    reduced = df[:ranks].T.copy()
+    reduced['Others'] = pd.Series( dict( (field, func(out_of_rank[field])) for field, func in
+                                    all_reduction_ops.items() ))
+    return reduced.T
 
 if __name__ == "__main__":
     sys.exit(main())
