@@ -51,7 +51,7 @@ def main():
 
     failover_record = pd.concat(failover_groups, ignore_index=True)\
                         .reindex(columns=print_column_order)
-    write_failover_record (failover_record)
+    write_failover_record (failover_record, config)
 
     return 0
 
@@ -148,17 +148,16 @@ def compute_traffic_delta (now_stats_indexless, last_stats_indexless, now_timest
     last_stats = last_stats_indexless.set_index('Ip')
 
     # Get the deltas and rates of Hits and Bandwidth of recently updated/added hosts
-    deltas = now_stats[cols] - last_stats[cols]
-    new_entries = ~deltas.index.isin(last_stats.index)
-    deltas[new_entries] = now_stats[cols][new_entries]
+    deltas = pd.np.subtract( *now_stats[cols].align(last_stats[cols], join='left') )
+    # The deltas of newly recorded hosts are their very data values
+    deltas.fillna( now_stats[cols], inplace=True )
     rates = deltas.copy() / float(delta_t)
 
     # Add computed columns to table, dropping the original columns since they
     # are a long-running accumulation.
     rates.rename(columns = lambda x: x + "Rate", inplace=True)
     table = now_stats.drop(cols, axis=1)\
-                     .join([deltas, rates])\
-                     .dropna()                  # Drop hosts that were not updated
+                     .join([deltas, rates])
     table.reset_index(inplace=True)
 
     return table
