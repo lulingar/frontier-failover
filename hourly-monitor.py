@@ -245,7 +245,7 @@ def write_failover_record (failover_record, config):
 
     grouping = ['Group', 'Sites', 'IsSquid']
     reduced_stats = failover_record.groupby(grouping, group_keys=False)\
-                                   .apply(reduce_to_rank, column='HitsRate', ranks=12)
+                                   .apply(reduce_to_rank, columns='HitsRate', ranks=12)
 
     failover_record.to_csv(file_path, index=False, float_format="%.2f")
     reduced_stats.to_csv(reduced_file_path, index=False, float_format="%.2f")
