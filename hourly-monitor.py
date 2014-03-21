@@ -141,7 +141,6 @@ def datetime_to_UTC_epoch (dt):
 
 def compute_traffic_delta (now_stats_indexless, last_stats_indexless, now_timestamp, last_timestamp):
 
-    delta_t = datetime_to_UTC_epoch(now_timestamp) - datetime_to_UTC_epoch(last_timestamp)
     cols = ['Hits', 'Bandwidth']
 
     now_stats = now_stats_indexless.set_index('Ip')
@@ -156,17 +155,18 @@ def compute_traffic_delta (now_stats_indexless, last_stats_indexless, now_timest
 
     # Add computed columns to table, dropping the original columns since they
     # are a long-running accumulation.
+    delta_t = datetime_to_UTC_epoch(now_timestamp) - datetime_to_UTC_epoch(last_timestamp)
     rates = deltas.copy() / float(delta_t)
     rates.rename(columns = lambda x: x + "Rate", inplace=True)
     table = now_stats.drop(cols, axis=1)\
-                     .join([deltas, rates])
+                     .join([deltas, rates], how='inner')
     table.reset_index(inplace=True)
 
     return table
 
 def excess_failover_check (awdata, site_rate_threshold):
 
-    non_squid_stats = awdata[ ~awdata['IsSquid'] ]
+    non_squid_stats = awdata[ ~awdata['IsSquid'] ].copy()
     by_sites = non_squid_stats.groupby('Sites')
 
     totals = by_sites['HitsRate'].sum()
@@ -174,7 +174,7 @@ def excess_failover_check (awdata, site_rate_threshold):
 
     offending = awdata[ awdata['Sites'].isin(totals_high.index) ]
 
-    return offending
+    return offending.copy()
 
 def gen_report (offending, groupname, geo):
 
