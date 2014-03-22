@@ -187,7 +187,6 @@ var Failover = new function() {
 
         dataset.forEach( function(d) {
             d["Timestamp"] = new Date(+d["Timestamp"] * 1000);
-            d["Last visit"] = new Date(+d["Last visit"] * 1000);
             d["Hits"] = +d["Hits"];
             d["HitsRate"] = +d["HitsRate"];
             d["Bandwidth"] = +d["Bandwidth"];
