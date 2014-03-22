@@ -12,7 +12,6 @@ var Failover = new function() {
     //  reference the object, and not the Global scope (or "Window")
 
     this.time_chart = seriesBarChart("#time-chart");
-    this.time_chart_range = dc.barChart("#time-chart-range");
     this.group_chart = dc.pieChart("#group-chart");
     this.squid_chart = dc.pieChart("#squid-chart");
     this.hosts_table = dc.dataTable("#hosts-table");
@@ -37,7 +36,8 @@ var Failover = new function() {
         this.remH = function(p, d) { return p - d["Hits"]; };
         this.ini = function() { return 0; };
 
-        this.ndx = crossfilter( this.process_data(dataset));
+        this.raw_data = dataset;
+        this.ndx = crossfilter( this.process_data(this.raw_data));
         this.all = this.ndx.groupAll().reduce(this.addH, this.remH, this.ini);
         this.site_D = this.ndx.dimension( function(d) { return d["Sites"]; })
 
@@ -88,7 +88,6 @@ var Failover = new function() {
                   .seriesSort(d3.ascending)
                   .brushOn(false)
                   .turnOnControls(false)
-                  .rangeChart(this.time_chart_range)
                   .renderlet(function(chart) {
                       chart.selectAll(".dc-legend-item")
                            .on("click", function(d) { 
@@ -111,18 +110,6 @@ var Failover = new function() {
             }
         this.time_chart.on("postRedraw", axis_tick_rotate);
         this.time_chart.on("postRender", axis_tick_rotate);
-
-        // The range controller
-        this.time_chart_range.width(time_chart_width)
-                  .height(45)
-                  .margins({top: 0, right: 50, bottom: 20, left: 40})
-                  .dimension(this.time_site_D)
-                  .group(this.time_sites_G)
-                  .keyAccessor(function(d) { return d.key[0]; })
-                  .x(d3.time.scale().domain(this.extent))
-                  .xUnits(this.periodRange)
-                  .gap(1)
-                  .centerBar(true);
 
         // The group chart
         this.group_chart.width(this.groups_base_dim)
