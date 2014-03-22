@@ -36,8 +36,8 @@ var Failover = new function() {
         this.remH = function(p, d) { return p - d["Hits"]; };
         this.ini = function() { return 0; };
 
-        this.raw_data = dataset;
-        this.ndx = crossfilter( this.process_data(this.raw_data));
+        this.raw_data = this.process_data(dataset);
+        this.ndx = crossfilter(this.raw_data);
         this.all = this.ndx.groupAll().reduce(this.addH, this.remH, this.ini);
         this.site_D = this.ndx.dimension( function(d) { return d["Sites"]; })
 
@@ -242,8 +242,11 @@ var Failover = new function() {
     this.reload = function() {
         d3.csv( this.data_file, 
                 function (error, dataset) {
+                    this.raw_data = this.process_data(dataset);
+
                     this.ndx.remove();
-                    this.ndx.add( this.process_data(dataset));
+                    this.ndx.add( this.raw_data);
+
                     dc.renderAll();
                     this.update_time_extent(this.period, this.extent_span);
                 }.bind(scope) );
