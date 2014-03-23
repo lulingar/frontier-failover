@@ -12,7 +12,6 @@ var Failover = new function() {
     //  reference the object, and not the Global scope (or "Window")
 
     this.time_chart = seriesBarChart("#time-chart");
-    this.time_chart_range = dc.barChart("#time-chart-range");
     this.group_chart = dc.pieChart("#group-chart");
     this.squid_chart = dc.pieChart("#squid-chart");
     this.hosts_table = dc.dataTable("#hosts-table");
@@ -25,6 +24,7 @@ var Failover = new function() {
 
     this.setup = function(error, config, dataset) {
 
+        this.config = config;
         this.period = config.history.period;
         this.extent_span = 3.6e6 * config.history.span;
 
@@ -88,7 +88,6 @@ var Failover = new function() {
                   .seriesSort(d3.ascending)
                   .brushOn(false)
                   .turnOnControls(false)
-                  .rangeChart(this.time_chart_range)
                   .renderlet(function(chart) {
                       chart.selectAll(".dc-legend-item")
                            .on("click", function(d) { 
@@ -112,18 +111,6 @@ var Failover = new function() {
         this.time_chart.on("postRedraw", axis_tick_rotate);
         this.time_chart.on("postRender", axis_tick_rotate);
 
-        // The range controller
-        this.time_chart_range.width(time_chart_width)
-                  .height(45)
-                  .margins({top: 0, right: 50, bottom: 20, left: 40})
-                  .dimension(this.time_site_D)
-                  .group(this.time_sites_G)
-                  .keyAccessor(function(d) { return d.key[0]; })
-                  .x(d3.time.scale().domain(this.extent))
-                  .xUnits(this.periodRange)
-                  .gap(1)
-                  .centerBar(true);
-
         // The group chart
         this.group_chart.width(this.groups_base_dim)
                 .height(this.groups_base_dim)
@@ -139,6 +126,16 @@ var Failover = new function() {
                         return (100 * d.value / this.all.value()).toFixed(2) + "%";
                     }.bind(scope))
                 .legend( dc.legend().x(this.groups_base_dim).y(50).gap(10) );
+
+        // Expand the group's legend with verbose group names from the JSON config
+        var group_name_render = function(chart) {
+                chart.selectAll(".dc-legend-item text")
+                     .html( function (d, i) {
+                         return this.config.groups[d.name].name; 
+                      });
+            }
+        this.group_chart.on("postRedraw", group_name_render);
+        this.group_chart.on("postRender", group_name_render);
 
         // The host (squid/not squid) chart
         this.squid_chart.width(this.groups_base_dim)
@@ -200,7 +197,6 @@ var Failover = new function() {
 
         dataset.forEach( function(d) {
             d["Timestamp"] = new Date(+d["Timestamp"] * 1000);
-            d["Last visit"] = new Date(+d["Last visit"] * 1000);
             d["Hits"] = +d["Hits"];
             d["HitsRate"] = +d["HitsRate"];
             d["Bandwidth"] = +d["Bandwidth"];
