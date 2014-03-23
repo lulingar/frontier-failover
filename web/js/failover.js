@@ -132,7 +132,7 @@ var Failover = new function() {
                 chart.selectAll(".dc-legend-item text")
                      .html( function (d, i) {
                          return this.config.groups[d.name].name; 
-                      });
+                      }.bind(scope));
             }
         this.group_chart.on("postRedraw", group_name_render);
         this.group_chart.on("postRender", group_name_render);
