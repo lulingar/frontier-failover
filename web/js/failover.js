@@ -248,10 +248,13 @@ var Failover = new function() {
 
         var periodObj = minuteBunch(period),
             periodRange = periodObj.range,
+            hour_factor = 3.6e6,
             now = new Date(),
             this_hour = periodObj(now).getTime(),
             extent = [new Date(this_hour - extent_span),
-                      new Date(this_hour)];
+                      new Date(this_hour)],
+            extent_pad = [new Date(this_hour - extent_span - hour_factor),
+                          new Date(this_hour + 2*hour_factor)];
 
         // Show the currently plotted time span
         d3.select("#date-start")
@@ -261,7 +264,7 @@ var Failover = new function() {
           .attr("datetime", extent[1])
           .text(this.date_format(extent[1]));
 
-        this.extent = extent;
+        this.extent = extent_pad;
 
     }.bind(this);
 
