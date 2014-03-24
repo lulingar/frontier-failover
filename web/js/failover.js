@@ -1,6 +1,4 @@
-//TODO gray-out all filtered-out items in a legend
 //TODO make a reliable sorting of the hosts-table
-//TODO enforce the time region in the history chart ("time-chart")
 //TODO add zoom capability to the history chart
 
 var Failover = new function() {
@@ -9,10 +7,10 @@ var Failover = new function() {
     // JS weirdness: You have to append ".bind(scope)" at the end of every
     //  member function, after its closing brace, in order
     //  to make sure any instances of "this" within the function actually
-    //  reference the object, and not the Global scope (or "Window")
+    //  reference the object, and not the Global scope (a.k.a. "Window")
 
-    this.time_chart = seriesBarChart("#time-chart");
-    this.time_chart_range = dc.barChart("#time-chart-range");
+    this.time_chart = dc.seriesChart("#time-chart");
+    this.time_chart_range = dc.barChart("#time-range-chart");
     this.group_chart = dc.pieChart("#group-chart");
     this.squid_chart = dc.pieChart("#squid-chart");
     this.hosts_table = dc.dataTable("#hosts-table");
@@ -25,38 +23,39 @@ var Failover = new function() {
 
     this.setup = function(error, config, dataset) {
 
+        this.config = config;
         this.period = config.history.period;
         this.extent_span = 3.6e6 * config.history.span;
 
         this.periodObj = minuteBunch(this.period);
         this.periodRange = this.periodObj.range;
-        this.now = new Date();
-        this.this_hour = this.periodObj(this.now).getTime();
-        this.extent = [new Date(this.this_hour - this.extent_span), new Date(this.this_hour)];
-        this.addH = function(p, d) { return p + d["Hits"]; };
-        this.remH = function(p, d) { return p - d["Hits"]; };
+        this.addH = function(p, d) { return p + d.Hits; };
+        this.remH = function(p, d) { return p - d.Hits; };
         this.ini = function() { return 0; };
 
         this.ndx = crossfilter( this.process_data(dataset));
         this.all = this.ndx.groupAll().reduce(this.addH, this.remH, this.ini);
-        this.site_D = this.ndx.dimension( function(d) { return d["Sites"]; })
+        this.site_D = this.ndx.dimension( function(d) { return d.Sites; })
 
-        this.time_D = this.ndx.dimension( function(d) { return d["Timestamp"]; });
-        this.group_D = this.ndx.dimension( function(d) { return d["Group"]; });
+        this.time_D = this.ndx.dimension( function(d) { return d.Timestamp; });
+        this.group_D = this.ndx.dimension( function(d) {
+                                    return this.config.groups[d.Group].name; 
+                                }.bind(scope));
         this.squid_D = this.ndx.dimension( function(d) { 
                                     var host_type = { true: "Squid",
                                                       false: "Worker Node" };
-                                    return host_type[d["IsSquid"]]; 
+                                    return host_type[d.IsSquid]; 
                                 });
-        this.hits_D = this.ndx.dimension(function(d){ return d["Hits"]; });
-        this.time_site_D = this.ndx.dimension(function(d) { return [d["Timestamp"], d["Sites"]]; });
+        this.hits_D = this.ndx.dimension( function(d) { return d.Hits; });
+        this.time_site_D = this.ndx.dimension( function(d) { return [d.Timestamp, d.Sites]; });
         this.group_G = this.group_D.group().reduce(this.addH, this.remH, this.ini);
         this.squid_G = this.squid_D.group().reduce(this.addH, this.remH, this.ini);
         this.time_sites_G = this.time_site_D.group().reduce(this.addH, this.remH, this.ini);
+        this.time_G = this.time_D.group().reduce(this.addH, this.remH, this.ini);
         this.hits_G = this.hits_D.group().reduce(this.addH, this.remH, this.ini);
-        this.site_list = this.site_D.group().all().map( function(d){ return d.key; });
+        this.site_list = this.site_D.group().all().map( function(d) { return d.key; });
         this.num_sites = this.site_list.length;
-        this.site_name_lengths = this.site_list.map( function(s){ return s.length; });
+        this.site_name_lengths = this.site_list.map( function(s) { return s.length; });
         this.max_length = crossfilter.quicksort(this.site_name_lengths, 0, this.site_name_lengths.length)
                                 .reverse()[0];
         this.sites_legend_space_v = (1 + this.num_sites) * this.sites_legend_item_size;
@@ -68,16 +67,18 @@ var Failover = new function() {
         var time_chart_width = 1024;
         this.time_chart.width(time_chart_width)
                   .height(415)
-                  .margins({top: 30, right: 30+this.sites_legend_space_h, bottom: 50, left: 60})
+                  .chart( function(c) { return dc.barChart(c) } )
+                  .margins({top: 30, right: 30+this.sites_legend_space_h, bottom: 40, left: 60})
                   .dimension(this.time_site_D)
                   .group(this.time_sites_G)
-                  .seriesAccessor(function(d) { return d.key[1]; })
                   .keyAccessor(function(d) { return d.key[0]; })
+                  .seriesAccessor(function(d) { return d.key[1]; })
+                  .seriesSort(d3.descending)
                   .title(function(d) { return d.key[1] + ": " + d.value + " Hits"; })
-                  .xAxisLabel("Time")
                   .yAxisLabel("Hits")
+                  .mouseZoomable(true)
+                  .rangeChart(this.time_chart_range)
                   .elasticY(true)
-                  .elasticX(true)
                   .x(d3.time.scale().domain(this.extent))
                   .xUnits(this.periodRange)
                   .renderHorizontalGridLines(true)
@@ -85,16 +86,12 @@ var Failover = new function() {
                              .x( 1024-this.sites_legend_space_h ).y(10)
                              .itemWidth(150).itemHeight(this.sites_legend_item_size)
                              .gap(5) )
-                  .seriesSort(d3.ascending)
                   .brushOn(false)
-                  .turnOnControls(false)
-                  .rangeChart(this.time_chart_range)
                   .renderlet(function(chart) {
                       chart.selectAll(".dc-legend-item")
                            .on("click", function(d) { 
                                           this.site_D.filterExact(d.name);
-                                          chart.select(".reset")
-                                               .style("display", null);
+                                          chart.turnOnControls();
                                           dc.redrawAll(); 
                                        }.bind(scope) ); 
                    });
@@ -111,18 +108,20 @@ var Failover = new function() {
             }
         this.time_chart.on("postRedraw", axis_tick_rotate);
         this.time_chart.on("postRender", axis_tick_rotate);
-
-        // The range controller
+       
+        // the time range controller chart 
         this.time_chart_range.width(time_chart_width)
-                  .height(45)
-                  .margins({top: 0, right: 50, bottom: 20, left: 40})
-                  .dimension(this.time_site_D)
-                  .group(this.time_sites_G)
-                  .keyAccessor(function(d) { return d.key[0]; })
+                  .height(80)
+                  .margins({top: 0, right: 30+this.sites_legend_space_h, bottom: 60, left: 70})
+                  .dimension(this.time_D)
+                  .group(this.time_G)
                   .x(d3.time.scale().domain(this.extent))
                   .xUnits(this.periodRange)
-                  .gap(1)
-                  .centerBar(true);
+                  .elasticY(true)
+                  .gap(1);
+        this.time_chart_range.xAxis().ticks(d3.time.hours, 2);
+        this.time_chart_range.on("postRedraw", axis_tick_rotate);
+        this.time_chart_range.on("postRender", axis_tick_rotate);
 
         // The group chart
         this.group_chart.width(this.groups_base_dim)
@@ -160,20 +159,20 @@ var Failover = new function() {
 
         // Table widget for displaying failover details
         this.hosts_table.dimension(this.site_D)
-                .group(function(d) { return d["Sites"]; })
+                .group(function(d) { return d.Sites; })
                 .columns([
                         function(d) { 
-                            var host = d["Host"],
-                                alias = ( d["Alias"] === '' ? host : d["Alias"] );
+                            var host = d.Host,
+                                alias = ( d.Alias === '' ? host : d.Alias );
                             return '<span title="Host: ' + host + '">' + alias + '</span>'; 
                         },
-                        function(d) { return this.squid_place(d["IsSquid"]); }.bind(scope),
-                        function(d) { return this.date_format(d["Timestamp"]); }.bind(scope),
-                        function(d) { return d["Hits"]; },
-                        function(d) { return size_natural(d["Bandwidth"]); },
-                        function(d) { return size_natural(d["BandwidthRate"]) + "/s"; }
+                        function(d) { return this.squid_place(d.IsSquid); }.bind(scope),
+                        function(d) { return this.date_format(d.Timestamp); }.bind(scope),
+                        function(d) { return d.Hits; },
+                        function(d) { return size_natural(d.Bandwidth); },
+                        function(d) { return size_natural(d.BandwidthRate) + "/s"; }
                         ])
-                .sortBy(function(d) { return [d["Timestamp"], d["Hits"]]; })
+                .sortBy(function(d) { return [d.Timestamp, d.Hits]; })
                 .order(d3.descending)
                 .size(Infinity)
                 .on("filtered", function(chart, filter) {
@@ -199,13 +198,15 @@ var Failover = new function() {
         var dataset = dataset;
 
         dataset.forEach( function(d) {
-            d["Timestamp"] = new Date(+d["Timestamp"] * 1000);
-            d["Last visit"] = new Date(+d["Last visit"] * 1000);
-            d["Hits"] = +d["Hits"];
-            d["HitsRate"] = +d["HitsRate"];
-            d["Bandwidth"] = +d["Bandwidth"];
-            d["BandwidthRate"] = +d["BandwidthRate"];
-            d["IsSquid"] = (d["IsSquid"] == "True");
+            // The timestamp points to the end of a period. 
+            //  this must be accounted for for plotting.
+            d.Timestamp = new Date((+d.Timestamp - 3600) * 1000);
+
+            d.Hits = +d.Hits;
+            d.HitsRate = +d.HitsRate;
+            d.Bandwidth = +d.Bandwidth;
+            d.BandwidthRate = +d.BandwidthRate;
+            d.IsSquid = (d.IsSquid == "True");
         });
 
         return dataset;
@@ -266,9 +267,13 @@ var Failover = new function() {
 
         var periodObj = minuteBunch(period),
             periodRange = periodObj.range,
+            hour = 3.6e6,
             now = new Date(),
             this_hour = periodObj(now).getTime(),
-            extent = [new Date(this_hour - extent_span), new Date(this_hour)];
+            extent = [new Date(this_hour - extent_span),
+                      new Date(this_hour)],
+            extent_pad = [new Date(this_hour - extent_span - 2*hour),
+                          new Date(this_hour + hour)];
 
         // Show the currently plotted time span
         d3.select("#date-start")
@@ -277,12 +282,14 @@ var Failover = new function() {
         d3.select("#date-end")
           .attr("datetime", extent[1])
           .text(this.date_format(extent[1]));
+
+        this.extent = extent_pad;
+
     }.bind(this);
 
     this.time_chart_reset = function() {
         this.site_D.filterAll();
-        d3.select("#time-chart .reset")
-          .style("display", "none");
+        this.time_chart.turnOffControls();
         dc.redrawAll(); 
     }.bind(this);
 }
