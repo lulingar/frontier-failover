@@ -141,6 +141,9 @@ var Failover = new function() {
                     }.bind(scope));
 
         // Table widget for displaying failover details
+        this.sort_order = {false: d3.descending, 
+                           true: d3.ascending};
+        this.current_sort_order = false;
         this.hosts_table.dimension(this.site_D)
                 .group(function(d) { return d["Sites"]; })
                 .columns([
@@ -156,7 +159,7 @@ var Failover = new function() {
                         function(d) { return size_natural(d["BandwidthRate"]) + "/s"; }
                         ])
                 .sortBy(function(d) { return [d["Timestamp"], d["Hits"]]; })
-                .order(d3.descending)
+                .order(this.sort_order[this.current_sort_order])
                 .size(Infinity)
                 .on("filtered", function(chart, filter) {
                         this.draw_squids();
@@ -164,6 +167,16 @@ var Failover = new function() {
                 .renderlet(function(table){
                         table.selectAll(".dc-table-group").classed("info", true);
                 });
+
+        // Sorting functionality of fields
+        this.hosts_table.selectAll('thead th').on("click", function(d, i){ 
+            var field = this.innerHTML.replace(/[ ?]/g, '');
+
+            scope.current_sort_order = !scope.current_sort_order;
+            scope.hosts_table.order(scope.sort_order[scope.current_sort_order])
+            scope.hosts_table.sortBy(function(d){return d[field]});
+            dc.redrawAll();
+        }); 
 
         // Draw all objects
         dc.renderAll();
