@@ -80,7 +80,7 @@ def analyze_failovers_to_group (config, groupname, now, past_records, geo, tagge
 
     groupconf = config['groups'][groupname]
 
-    instances = groupconf['instances']
+    instances = groupconf['awstats']
     last_stats_file = groupconf['file_last_stats']
     site_rate_threshold = groupconf['rate_threshold']        # Unit: Queries/sec
 
@@ -108,7 +108,7 @@ def analyze_failovers_to_group (config, groupname, now, past_records, geo, tagge
     else:
         offending = None
 
-    gen_report (offending, groupname, geo)
+    gen_report (offending, groupconf['name'], geo)
     failovers = update_record (offending, past_records, now, geo)
 
     return failovers
