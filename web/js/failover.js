@@ -145,20 +145,20 @@ var Failover = new function() {
                            true: d3.ascending};
         this.current_sort_order = false;
         this.hosts_table.dimension(this.site_D)
-                .group(function(d) { return d["Sites"]; })
+                .group(function(d) { return d.Sites; })
                 .columns([
                         function(d) { 
-                            var host = d["Host"],
-                                alias = ( d["Alias"] === '' ? host : d["Alias"] );
+                            var host = d.Host,
+                                alias = ( d.Alias === '' ? host : d.Alias );
                             return '<span title="Host: ' + host + '">' + alias + '</span>'; 
                         },
-                        function(d) { return this.squid_place(d["IsSquid"]); }.bind(scope),
-                        function(d) { return this.date_format(d["Timestamp"]); }.bind(scope),
-                        function(d) { return d["Hits"]; },
-                        function(d) { return size_natural(d["Bandwidth"]); },
-                        function(d) { return size_natural(d["BandwidthRate"]) + "/s"; }
+                        function(d) { return this.squid_place(d.IsSquid); }.bind(scope),
+                        function(d) { return this.date_format(d.Timestamp); }.bind(scope),
+                        function(d) { return d.Hits; },
+                        function(d) { return size_natural(d.Bandwidth); },
+                        function(d) { return size_natural(d.BandwidthRate) + "/s"; }
                         ])
-                .sortBy(function(d) { return [d["Timestamp"], d["Hits"]]; })
+                .sortBy(function(d) { return d.Timestamp; })
                 .order(this.sort_order[this.current_sort_order])
                 .size(Infinity)
                 .on("filtered", function(chart, filter) {
@@ -174,7 +174,7 @@ var Failover = new function() {
 
             scope.current_sort_order = !scope.current_sort_order;
             scope.hosts_table.order(scope.sort_order[scope.current_sort_order])
-            scope.hosts_table.sortBy(function(d){return d[field]});
+            scope.hosts_table.sortBy( function(d) { return d[field]; } );
             dc.redrawAll();
         }); 
 
@@ -198,11 +198,11 @@ var Failover = new function() {
             //  this must be accounted for for plotting.
             d.Timestamp = new Date((+d.Timestamp - 3600) * 1000);
 
-            d["Hits"] = +d["Hits"];
-            d["HitsRate"] = +d["HitsRate"];
-            d["Bandwidth"] = +d["Bandwidth"];
-            d["BandwidthRate"] = +d["BandwidthRate"];
-            d["IsSquid"] = (d["IsSquid"] == "True");
+            d.Hits = +d.Hits;
+            d.HitsRate = +d.HitsRate;
+            d.Bandwidth = +d.Bandwidth;
+            d.BandwidthRate = +d.BandwidthRate;
+            d.IsSquid = (d.IsSquid == "True");
         });
 
         return dataset;
