@@ -17,4 +17,6 @@
 
   #group-chart svg { width: 380px; }
   #squid-chart svg { width: 300px; }
+
   #time-chart .fadeout { fill-opacity: 0; }
+  #time-range-chart g.y { display: none; }

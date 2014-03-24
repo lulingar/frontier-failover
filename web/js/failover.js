@@ -10,6 +10,7 @@ var Failover = new function() {
     //  reference the object, and not the Global scope (a.k.a. "Window")
 
     this.time_chart = dc.seriesChart("#time-chart");
+    this.time_chart_range = dc.barChart("#time-range-chart");
     this.group_chart = dc.pieChart("#group-chart");
     this.squid_chart = dc.pieChart("#squid-chart");
     this.hosts_table = dc.dataTable("#hosts-table");
@@ -51,6 +52,7 @@ var Failover = new function() {
         this.group_G = this.group_D.group().reduce(this.addH, this.remH, this.ini);
         this.squid_G = this.squid_D.group().reduce(this.addH, this.remH, this.ini);
         this.time_sites_G = this.time_site_D.group().reduce(this.addH, this.remH, this.ini);
+        this.time_G = this.time_D.group().reduce(this.addH, this.remH, this.ini);
         this.hits_G = this.hits_D.group().reduce(this.addH, this.remH, this.ini);
         this.site_list = this.site_D.group().all().map( function(d) { return d.key; });
         this.num_sites = this.site_list.length;
@@ -67,15 +69,16 @@ var Failover = new function() {
         this.time_chart.width(time_chart_width)
                   .height(415)
                   .chart( function(c) { return dc.barChart(c) } )
-                  .margins({top: 30, right: 30+this.sites_legend_space_h, bottom: 60, left: 60})
+                  .margins({top: 30, right: 30+this.sites_legend_space_h, bottom: 40, left: 60})
                   .dimension(this.time_site_D)
                   .group(this.time_sites_G)
                   .keyAccessor(function(d) { return d.key[0]; })
                   .seriesAccessor(function(d) { return d.key[1]; })
                   .seriesSort(d3.descending)
                   .title(function(d) { return d.key[1] + ": " + d.value + " Hits"; })
-                  .xAxisLabel("Time")
                   .yAxisLabel("Hits")
+                  .mouseZoomable(true)
+                  .rangeChart(this.time_chart_range)
                   .elasticY(true)
                   .x(d3.time.scale().domain(this.extent))
                   .xUnits(this.periodRange)
@@ -106,6 +109,20 @@ var Failover = new function() {
             }
         this.time_chart.on("postRedraw", axis_tick_rotate);
         this.time_chart.on("postRender", axis_tick_rotate);
+       
+        // the time range controller chart 
+        this.time_chart_range.width(time_chart_width)
+                  .height(80)
+                  .margins({top: 0, right: 30+this.sites_legend_space_h, bottom: 60, left: 70})
+                  .dimension(this.time_D)
+                  .group(this.time_G)
+                  .x(d3.time.scale().domain(this.extent))
+                  .xUnits(this.periodRange)
+                  .elasticY(true)
+                  .gap(1);
+        this.time_chart_range.xAxis().ticks(d3.time.hours, 2);
+        this.time_chart_range.on("postRedraw", axis_tick_rotate);
+        this.time_chart_range.on("postRender", axis_tick_rotate);
 
         // The group chart
         this.group_chart.width(this.groups_base_dim)
@@ -182,7 +199,7 @@ var Failover = new function() {
         var dataset = dataset;
 
         dataset.forEach( function(d) {
-            // The timestamp points to the end of a period.
+            // The timestamp points to the end of a period. 
             //  this must be accounted for for plotting.
             d.Timestamp = new Date((+d.Timestamp - 3600) * 1000);
 
@@ -276,7 +293,7 @@ var Failover = new function() {
 
     this.time_chart_reset = function() {
         this.site_D.filterAll();
-        this.time_chart.turnOffControls(); 
+        this.time_chart.turnOffControls();
         dc.redrawAll(); 
     }.bind(this);
 }
