@@ -1,6 +1,4 @@
-//TODO gray-out all filtered-out items in a legend
 //TODO make a reliable sorting of the hosts-table
-//TODO enforce the time region in the history chart ("time-chart")
 //TODO add zoom capability to the history chart
 
 var Failover = new function() {
@@ -9,9 +7,9 @@ var Failover = new function() {
     // JS weirdness: You have to append ".bind(scope)" at the end of every
     //  member function, after its closing brace, in order
     //  to make sure any instances of "this" within the function actually
-    //  reference the object, and not the Global scope (or "Window")
+    //  reference the object, and not the Global scope (a.k.a. "Window")
 
-    this.time_chart = seriesBarChart("#time-chart");
+    this.time_chart = dc.seriesChart("#time-chart");
     this.group_chart = dc.pieChart("#group-chart");
     this.squid_chart = dc.pieChart("#squid-chart");
     this.hosts_table = dc.dataTable("#hosts-table");
@@ -30,33 +28,32 @@ var Failover = new function() {
 
         this.periodObj = minuteBunch(this.period);
         this.periodRange = this.periodObj.range;
-        this.now = new Date();
-        this.this_hour = this.periodObj(this.now).getTime();
-        this.extent = [new Date(this.this_hour - this.extent_span), new Date(this.this_hour)];
-        this.addH = function(p, d) { return p + d["Hits"]; };
-        this.remH = function(p, d) { return p - d["Hits"]; };
+        this.addH = function(p, d) { return p + d.Hits; };
+        this.remH = function(p, d) { return p - d.Hits; };
         this.ini = function() { return 0; };
 
         this.ndx = crossfilter( this.process_data(dataset));
         this.all = this.ndx.groupAll().reduce(this.addH, this.remH, this.ini);
-        this.site_D = this.ndx.dimension( function(d) { return d["Sites"]; })
+        this.site_D = this.ndx.dimension( function(d) { return d.Sites; })
 
-        this.time_D = this.ndx.dimension( function(d) { return d["Timestamp"]; });
-        this.group_D = this.ndx.dimension( function(d) { return d["Group"]; });
+        this.time_D = this.ndx.dimension( function(d) { return d.Timestamp; });
+        this.group_D = this.ndx.dimension( function(d) {
+                                    return this.config.groups[d.Group].name; 
+                                }.bind(scope));
         this.squid_D = this.ndx.dimension( function(d) { 
                                     var host_type = { true: "Squid",
                                                       false: "Worker Node" };
-                                    return host_type[d["IsSquid"]]; 
+                                    return host_type[d.IsSquid]; 
                                 });
-        this.hits_D = this.ndx.dimension(function(d){ return d["Hits"]; });
-        this.time_site_D = this.ndx.dimension(function(d) { return [d["Timestamp"], d["Sites"]]; });
+        this.hits_D = this.ndx.dimension( function(d) { return d.Hits; });
+        this.time_site_D = this.ndx.dimension( function(d) { return [d.Timestamp, d.Sites]; });
         this.group_G = this.group_D.group().reduce(this.addH, this.remH, this.ini);
         this.squid_G = this.squid_D.group().reduce(this.addH, this.remH, this.ini);
         this.time_sites_G = this.time_site_D.group().reduce(this.addH, this.remH, this.ini);
         this.hits_G = this.hits_D.group().reduce(this.addH, this.remH, this.ini);
-        this.site_list = this.site_D.group().all().map( function(d){ return d.key; });
+        this.site_list = this.site_D.group().all().map( function(d) { return d.key; });
         this.num_sites = this.site_list.length;
-        this.site_name_lengths = this.site_list.map( function(s){ return s.length; });
+        this.site_name_lengths = this.site_list.map( function(s) { return s.length; });
         this.max_length = crossfilter.quicksort(this.site_name_lengths, 0, this.site_name_lengths.length)
                                 .reverse()[0];
         this.sites_legend_space_v = (1 + this.num_sites) * this.sites_legend_item_size;
@@ -68,16 +65,17 @@ var Failover = new function() {
         var time_chart_width = 1024;
         this.time_chart.width(time_chart_width)
                   .height(415)
-                  .margins({top: 30, right: 30+this.sites_legend_space_h, bottom: 50, left: 60})
+                  .chart( function(c) { return dc.barChart(c) } )
+                  .margins({top: 30, right: 30+this.sites_legend_space_h, bottom: 60, left: 60})
                   .dimension(this.time_site_D)
                   .group(this.time_sites_G)
-                  .seriesAccessor(function(d) { return d.key[1]; })
                   .keyAccessor(function(d) { return d.key[0]; })
+                  .seriesAccessor(function(d) { return d.key[1]; })
+                  .seriesSort(d3.descending)
                   .title(function(d) { return d.key[1] + ": " + d.value + " Hits"; })
                   .xAxisLabel("Time")
                   .yAxisLabel("Hits")
                   .elasticY(true)
-                  .elasticX(true)
                   .x(d3.time.scale().domain(this.extent))
                   .xUnits(this.periodRange)
                   .renderHorizontalGridLines(true)
@@ -85,9 +83,7 @@ var Failover = new function() {
                              .x( 1024-this.sites_legend_space_h ).y(10)
                              .itemWidth(150).itemHeight(this.sites_legend_item_size)
                              .gap(5) )
-                  .seriesSort(d3.ascending)
                   .brushOn(false)
-                  .turnOnControls(false)
                   .renderlet(function(chart) {
                       chart.selectAll(".dc-legend-item")
                            .on("click", function(d) { 
@@ -126,16 +122,6 @@ var Failover = new function() {
                         return (100 * d.value / this.all.value()).toFixed(2) + "%";
                     }.bind(scope))
                 .legend( dc.legend().x(this.groups_base_dim).y(50).gap(10) );
-
-        // Expand the group's legend with verbose group names from the JSON config
-        var group_name_render = function(chart) {
-                chart.selectAll(".dc-legend-item text")
-                     .html( function (d, i) {
-                         return this.config.groups[d.name].name; 
-                      }.bind(scope));
-            }
-        this.group_chart.on("postRedraw", group_name_render);
-        this.group_chart.on("postRender", group_name_render);
 
         // The host (squid/not squid) chart
         this.squid_chart.width(this.groups_base_dim)
@@ -264,7 +250,8 @@ var Failover = new function() {
             periodRange = periodObj.range,
             now = new Date(),
             this_hour = periodObj(now).getTime(),
-            extent = [new Date(this_hour - extent_span), new Date(this_hour)];
+            extent = [new Date(this_hour - extent_span),
+                      new Date(this_hour)];
 
         // Show the currently plotted time span
         d3.select("#date-start")
@@ -273,6 +260,9 @@ var Failover = new function() {
         d3.select("#date-end")
           .attr("datetime", extent[1])
           .text(this.date_format(extent[1]));
+
+        this.extent = extent;
+
     }.bind(this);
 
     this.time_chart_reset = function() {
