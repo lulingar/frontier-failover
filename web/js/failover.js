@@ -88,8 +88,7 @@ var Failover = new function() {
                       chart.selectAll(".dc-legend-item")
                            .on("click", function(d) { 
                                           this.site_D.filterExact(d.name);
-                                          chart.select(".reset")
-                                               .style("display", null);
+                                          chart.turnOnControls();
                                           dc.redrawAll(); 
                                        }.bind(scope) ); 
                    });
@@ -182,7 +181,10 @@ var Failover = new function() {
         var dataset = dataset;
 
         dataset.forEach( function(d) {
-            d["Timestamp"] = new Date(+d["Timestamp"] * 1000);
+            // The timestamp points to the end of a period.
+            //  this must be accounted for for plotting.
+            d.Timestamp = new Date((+d.Timestamp - 3600) * 1000);
+
             d["Hits"] = +d["Hits"];
             d["HitsRate"] = +d["HitsRate"];
             d["Bandwidth"] = +d["Bandwidth"];
@@ -248,13 +250,13 @@ var Failover = new function() {
 
         var periodObj = minuteBunch(period),
             periodRange = periodObj.range,
-            hour_factor = 3.6e6,
+            hour = 3.6e6,
             now = new Date(),
             this_hour = periodObj(now).getTime(),
             extent = [new Date(this_hour - extent_span),
                       new Date(this_hour)],
-            extent_pad = [new Date(this_hour - extent_span - hour_factor),
-                          new Date(this_hour + 2*hour_factor)];
+            extent_pad = [new Date(this_hour - extent_span - hour),
+                          new Date(this_hour + hour)];
 
         // Show the currently plotted time span
         d3.select("#date-start")
@@ -270,8 +272,7 @@ var Failover = new function() {
 
     this.time_chart_reset = function() {
         this.site_D.filterAll();
-        d3.select("#time-chart .reset")
-          .style("display", "none");
+        this.time_chart.turnOffControls(); 
         dc.redrawAll(); 
     }.bind(this);
 }
