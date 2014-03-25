@@ -197,6 +197,8 @@ var Failover = new function() {
             // The timestamp points to the end of a period.
             //  this must be accounted for for plotting.
             d.Timestamp = new Date((+d.Timestamp - 3600) * 1000);
+            d.Timestamp.setMinutes(0);
+            d.Timestamp.setSeconds(0);
 
             d.Hits = +d.Hits;
             d.HitsRate = +d.HitsRate;
