@@ -23,9 +23,6 @@ def main():
     geolist_file = server_lists + "geolist.txt"
     exception_list_file = server_lists + "exceptionlist.txt"
 
-    print_column_order = ('Timestamp','Sites','Group','IsSquid','Host','Alias',
-                          'Hits','HitsRate','Bandwidth','BandwidthRate')
-
     config = json.load( open(config_file))
     json.dump(config, open(config_file, 'w'), indent=3)
 
@@ -52,6 +49,8 @@ def main():
     if len(failover_groups):
         failover_record = pd.concat(failover_groups, ignore_index=True)
         write_failover_record(failover_record, config['record_file'])
+
+        mark_activity_for_mail(failover_record)
 
     return 0
 
@@ -259,6 +258,21 @@ def reduce_to_rank (dataframe, columns, ranks=5, reduction_ops={}, tagged_fields
     reduced['Others'] = to_add
 
     return reduced.T.copy()
+
+def mark_activity_for_mail (records):
+
+    x = records[['Sites', 'Timestamp']].drop_duplicates()
+    # Wait is the time (in hours) elapsed between failover events
+    x['Wait'] = x.groupby('Sites')['Timestamp'].diff()/3600 - 1
+    x.Wait = x.Wait.fillna(0).round().astype(int) - 1
+    x.Timestamp = x.Timestamp.apply(pd.to_datetime, unit='s')
+
+    # persistent failover is that which has no wait (i.e. happens continuously)
+    persistent = x[x.Wait == 0]
+    to_report = persistent.Sites.unique()
+
+    return to_report
+
 
 if __name__ == "__main__":
     sys.exit(main())
