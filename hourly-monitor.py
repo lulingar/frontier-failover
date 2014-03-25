@@ -50,9 +50,8 @@ def main():
             failover_groups.append(failover.copy())
 
     if len(failover_groups):
-        failover_record = pd.concat(failover_groups, ignore_index=True)\
-                            .reindex(columns=print_column_order)
-        write_failover_record (failover_record, config['record_file'])
+        failover_record = pd.concat(failover_groups, ignore_index=True)
+        write_failover_record(failover_record, config['record_file'])
 
     return 0
 
@@ -62,7 +61,7 @@ def load_records (record_file, now, record_span):
     old_cutoff = now_secs - record_span*3600
 
     if os.path.exists(record_file):
-        records = pd.read_csv(record_file)
+        records = pd.read_csv(record_file, index_col=True)
         records = records[ records['Timestamp'] >= old_cutoff ]
     else:
         records = None
@@ -120,7 +119,7 @@ def load_last_data (last_stats_file):
         last_timestamp = datetime.utcfromtimestamp( int( fobj.next().strip()))
         fobj.close()
 
-        last_awdata = pd.read_csv(last_stats_file, skiprows=1)
+        last_awdata = pd.read_csv(last_stats_file, index_col=False, skiprows=1)
         last_awdata['Ip'] = last_awdata['Host'].apply(fl.get_host_ipv4_addr)
 
     else:
@@ -133,7 +132,7 @@ def save_last_data (last_stats_file, data, timestamp):
 
     fobj = open(last_stats_file, 'w')
     fobj.write( str(datetime_to_UTC_epoch(timestamp)) + '\n' )
-    data.to_csv(fobj, index=False)
+    data.reset_index().to_csv(fobj, index=False)
     fobj.close()
 
 def datetime_to_UTC_epoch (dt):
@@ -206,7 +205,7 @@ def update_record (offending, past_records, now, geo):
         return
 
     to_add = offending.copy()
-    to_add['Timestamp'] = now_secs
+    to_add['Timestamp'] = int(now_secs)
     to_add['IsSquid'] = to_add['Ip'].isin(geo['Ip'])
 
     if isinstance(past_records, pd.DataFrame):
@@ -220,6 +219,10 @@ def update_record (offending, past_records, now, geo):
     return update
 
 def write_failover_record (failover_record, file_path):
+
+    failover_record['Bandwidth'] = failover_record['Bandwidth'].astype(int)
+    failover_record['Hits'] = failover_record['Hits'].astype(int)
+    failover_record['Timestamp'] = failover_record['Timestamp'].astype(int)
 
     reduced_file_parts = file_path.split('.')
     reduced_file_parts.insert(len(reduced_file_parts)-1, 'reduced')
