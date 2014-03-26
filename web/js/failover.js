@@ -19,6 +19,9 @@ var Failover = new function() {
     this.groups_base_dim = 150;
     this.groups_legend_width = 200;
     this.groups_radius = this.groups_base_dim/2 - 15;
+    this.sites_color_scale = ["#a6cee3", "#1f78b4", "#b2df8a", "#33a02c", 
+                              "#fb9a99", "#e31a1c", "#fdbf6f", "#ff7f00",
+                              "#cab2d6", "#6a3d9a", "#ffff99", "#b15928" ]
 
     this.setup = function(error, config, dataset) {
 
@@ -65,8 +68,9 @@ var Failover = new function() {
         var time_chart_width = 1024;
         this.time_chart.width(time_chart_width)
                   .height(415)
-                  .chart( function(c) { return dc.barChart(c) } )
                   .margins({top: 30, right: 30+this.sites_legend_space_h, bottom: 60, left: 60})
+                  .chart( function(c) { return dc.barChart(c) } )
+                  .ordinalColors(this.sites_color_scale)
                   .dimension(this.time_site_D)
                   .group(this.time_sites_G)
                   .keyAccessor(function(d) { return d.key[0]; })

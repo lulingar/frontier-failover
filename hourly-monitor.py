@@ -265,7 +265,7 @@ def mark_activity_for_mail (records):
 
     x = records[['Sites', 'Timestamp']].drop_duplicates()
     # Wait is the time (in hours) elapsed between failover events
-    x['Wait'] = x.groupby('Sites')['Timestamp'].diff()/3600 - 1
+    x['Wait'] = x.groupby('Sites')['Timestamp'].diff()/3600.0
     x.Wait = x.Wait.fillna(0).round().astype(int) - 1
     x.Timestamp = x.Timestamp.apply(pd.to_datetime, unit='s')
 
