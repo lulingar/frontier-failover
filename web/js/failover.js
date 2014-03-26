@@ -113,6 +113,7 @@ var Failover = new function() {
                 .innerRadius(0.3*this.groups_radius)
                 .dimension(this.group_D)
                 .group(this.group_G)
+                .minAngleForLabel(0)
                 .ordinalColors(["#ff7f0e", "#17becf", "#2ca02c"])
                 .title(function(d) { return d.value + " Hits"; })
                 .label(function (d) {

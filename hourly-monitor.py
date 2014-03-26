@@ -50,7 +50,7 @@ def main():
         failover_record = pd.concat(failover_groups, ignore_index=True)
         write_failover_record(failover_record, config['record_file'])
 
-        print mark_activity_for_mail(failover_record)
+        print "Sites to send alarm to:\n", mark_activity_for_mail(failover_record)
 
     return 0
 
@@ -60,7 +60,7 @@ def load_records (record_file, now, record_span):
     old_cutoff = now_secs - record_span*3600
 
     if os.path.exists(record_file):
-        records = pd.read_csv(record_file, index_col=True)
+        records = pd.read_csv(record_file, index_col=False)
         records = records[ records['Timestamp'] >= old_cutoff ]
     else:
         records = None
@@ -106,8 +106,8 @@ def analyze_failovers_to_group (config, groupname, now, past_records, geo, tagge
     else:
         offending = None
 
-    gen_report (offending, groupconf['name'], geo)
     failovers = update_record (offending, past_records, now, geo)
+    gen_report (offending, groupconf['name'], geo)
 
     return failovers
 
@@ -216,11 +216,14 @@ def update_record (offending, past_records, now, geo):
 
 def write_failover_record (record, file_path):
 
-    failover_record = record.drop('Ip', axis=1)
+    column_order = ["Timestamp", "Group", "Sites", "Host", "Alias", "IsSquid",
+                    "Bandwidth", "BandwidthRate", "Hits", "HitsRate"]
 
+    failover_record = record.drop('Ip', axis=1)
     failover_record['Bandwidth'] = failover_record['Bandwidth'].astype(int)
     failover_record['Hits'] = failover_record['Hits'].astype(int)
     failover_record['Timestamp'] = failover_record['Timestamp'].astype(int)
+    failover_record.reindex(columns=column_order, inplace=True)
 
     reduced_file_parts = file_path.split('.')
     reduced_file_parts.insert(len(reduced_file_parts)-1, 'reduced')
