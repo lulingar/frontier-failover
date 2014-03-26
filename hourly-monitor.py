@@ -50,7 +50,7 @@ def main():
         failover_record = pd.concat(failover_groups, ignore_index=True)
         write_failover_record(failover_record, config['record_file'])
 
-        mark_activity_for_mail(failover_record)
+        print mark_activity_for_mail(failover_record)
 
     return 0
 
@@ -212,12 +212,11 @@ def update_record (offending, past_records, now, geo):
     else:
         update = to_add
 
-    update['Bandwidth'] = update['Bandwidth'].astype(int)
-    update['Hits'] = update['Hits'].astype(int)
-
     return update
 
-def write_failover_record (failover_record, file_path):
+def write_failover_record (record, file_path):
+
+    failover_record = record.drop('Ip', axis=1)
 
     failover_record['Bandwidth'] = failover_record['Bandwidth'].astype(int)
     failover_record['Hits'] = failover_record['Hits'].astype(int)
