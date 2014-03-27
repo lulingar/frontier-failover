@@ -3,76 +3,74 @@
 
 var Failover = new function() {
 
-    var scope = this;
-    // JS weirdness: You have to append ".bind(scope)" at the end of every
-    //  member function, after its closing brace, in order
-    //  to make sure any instances of "this" within the function actually
-    //  reference the object, and not the Global scope (a.k.a. "Window")
+    var self = this;
+    // JS weirdness: By default, when not specified otherwise, functions  
+    //  have the object "this" pointing to the Global scope (a.k.a. "Window")
+    //  So to reference to this object, use "self" instead. 
 
-    this.time_chart = dc.seriesChart("#time-chart");
-    this.group_chart = dc.pieChart("#group-chart");
-    this.squid_chart = dc.pieChart("#squid-chart");
-    this.hosts_table = dc.dataTable("#hosts-table");
-    this.data_file = "failover.csv";
-    this.date_format = d3.time.format("%b %d, %Y %I:%M %p");
-    this.sites_legend_item_size = 20;
-    this.groups_base_dim = 150;
-    this.groups_legend_width = 200;
-    this.groups_radius = this.groups_base_dim/2 - 15;
-    this.sites_color_scale = ["#a6cee3", "#1f78b4", "#b2df8a", "#33a02c", 
+    self.time_chart = dc.seriesChart("#time-chart");
+    self.group_chart = dc.pieChart("#group-chart");
+    self.squid_chart = dc.pieChart("#squid-chart");
+    self.hosts_table = dc.dataTable("#hosts-table");
+    self.data_file = "failover.csv";
+    self.date_format = d3.time.format("%b %d, %Y %I:%M %p");
+    self.sites_legend_item_size = 20;
+    self.groups_base_dim = 150;
+    self.groups_legend_width = 200;
+    self.groups_radius = self.groups_base_dim/2 - 15;
+    self.sites_color_scale = ["#a6cee3", "#1f78b4", "#b2df8a", "#33a02c", 
                               "#fb9a99", "#e31a1c", "#fdbf6f", "#ff7f00",
-                              "#cab2d6", "#6a3d9a", "#ffff99", "#b15928" ]
+                              "#cab2d6", "#6a3d9a", "#73b732", "#b15928",
+                              "#6a730c", "#54305e"]
 
-    this.setup = function(error, config, dataset) {
+    self.setup = function(error, config, dataset) {
 
-        this.config = config;
-        this.period = config.history.period;
-        this.extent_span = 3.6e6 * config.history.span;
+        self.config = config;
+        self.period = config.history.period;
+        self.extent_span = 3.6e6 * config.history.span;
 
-        this.periodObj = minuteBunch(this.period);
-        this.periodRange = this.periodObj.range;
-        this.addH = function(p, d) { return p + d.Hits; };
-        this.remH = function(p, d) { return p - d.Hits; };
-        this.ini = function() { return 0; };
+        self.periodObj = minuteBunch(self.period);
+        self.periodRange = self.periodObj.range;
+        self.addH = function(p, d) { return p + d.Hits; };
+        self.remH = function(p, d) { return p - d.Hits; };
+        self.ini = function() { return 0; };
 
-        this.ndx = crossfilter( this.process_data(dataset));
-        this.all = this.ndx.groupAll().reduce(this.addH, this.remH, this.ini);
-        this.site_D = this.ndx.dimension( function(d) { return d.Sites; })
+        self.ndx = crossfilter( self.process_data(dataset));
+        self.all = self.ndx.groupAll().reduce(self.addH, self.remH, self.ini);
+        self.site_D = self.ndx.dimension( function(d) { return d.Sites; })
 
-        this.time_D = this.ndx.dimension( function(d) { return d.Timestamp; });
-        this.group_D = this.ndx.dimension( function(d) {
-                                    return this.config.groups[d.Group].name; 
-                                }.bind(scope));
-        this.squid_D = this.ndx.dimension( function(d) { 
-                                    var host_type = { true: "Squid",
-                                                      false: "Worker Node" };
-                                    return host_type[d.IsSquid]; 
+        self.time_D = self.ndx.dimension( function(d) { return d.Timestamp; });
+        self.group_D = self.ndx.dimension( function(d) {
+                                    return self.config.groups[d.Group].name; 
                                 });
-        this.hits_D = this.ndx.dimension( function(d) { return d.Hits; });
-        this.time_site_D = this.ndx.dimension( function(d) { return [d.Timestamp, d.Sites]; });
-        this.group_G = this.group_D.group().reduce(this.addH, this.remH, this.ini);
-        this.squid_G = this.squid_D.group().reduce(this.addH, this.remH, this.ini);
-        this.time_sites_G = this.time_site_D.group().reduce(this.addH, this.remH, this.ini);
-        this.hits_G = this.hits_D.group().reduce(this.addH, this.remH, this.ini);
-        this.site_list = this.site_D.group().all().map( function(d) { return d.key; });
-        this.num_sites = this.site_list.length;
-        this.site_name_lengths = this.site_list.map( function(s) { return s.length; });
-        this.max_length = crossfilter.quicksort(this.site_name_lengths, 0, this.site_name_lengths.length)
+        self.squid_D = self.ndx.dimension( function(d) { 
+                                    return d.IsSquid ? "Squid" : "Worker Node"; 
+                                });
+        self.hits_D = self.ndx.dimension( function(d) { return d.Hits; });
+        self.time_site_D = self.ndx.dimension( function(d) { return [d.Timestamp, d.Sites]; });
+        self.group_G = self.group_D.group().reduce(self.addH, self.remH, self.ini);
+        self.squid_G = self.squid_D.group().reduce(self.addH, self.remH, self.ini);
+        self.time_sites_G = self.time_site_D.group().reduce(self.addH, self.remH, self.ini);
+        self.hits_G = self.hits_D.group().reduce(self.addH, self.remH, self.ini);
+        self.site_list = self.site_D.group().all().map( function(d) { return d.key; });
+        self.num_sites = self.site_list.length;
+        self.site_name_lengths = self.site_list.map( function(s) { return s.length; });
+        self.max_length = crossfilter.quicksort(self.site_name_lengths, 0, self.site_name_lengths.length)
                                 .reverse()[0];
-        this.sites_legend_space_v = (1 + this.num_sites) * this.sites_legend_item_size;
-        this.sites_legend_space_h = 7*this.max_length;
+        self.sites_legend_space_v = (1 + self.num_sites) * self.sites_legend_item_size;
+        self.sites_legend_space_h = 7*self.max_length;
 
-        this.update_time_extent(this.period, this.extent_span);
+        self.update_time_extent(self.period, self.extent_span);
 
         // The time series
         var time_chart_width = 1024;
-        this.time_chart.width(time_chart_width)
+        self.time_chart.width(time_chart_width)
                   .height(415)
-                  .margins({top: 30, right: 30+this.sites_legend_space_h, bottom: 60, left: 60})
+                  .margins({top: 30, right: 30+self.sites_legend_space_h, bottom: 60, left: 60})
                   .chart( function(c) { return dc.barChart(c) } )
-                  .ordinalColors(this.sites_color_scale)
-                  .dimension(this.time_site_D)
-                  .group(this.time_sites_G)
+                  .ordinalColors(self.sites_color_scale)
+                  .dimension(self.time_site_D)
+                  .group(self.time_sites_G)
                   .keyAccessor(function(d) { return d.key[0]; })
                   .seriesAccessor(function(d) { return d.key[1]; })
                   .seriesSort(d3.descending)
@@ -80,24 +78,24 @@ var Failover = new function() {
                   .xAxisLabel("Time")
                   .yAxisLabel("Hits")
                   .elasticY(true)
-                  .x(d3.time.scale().domain(this.extent))
-                  .xUnits(this.periodRange)
+                  .x(d3.time.scale().domain(self.extent))
+                  .xUnits(self.periodRange)
                   .renderHorizontalGridLines(true)
                   .legend( dc.legend()
-                             .x( 1024-this.sites_legend_space_h ).y(10)
-                             .itemWidth(150).itemHeight(this.sites_legend_item_size)
+                             .x( 1024-self.sites_legend_space_h ).y(10)
+                             .itemWidth(150).itemHeight(self.sites_legend_item_size)
                              .gap(5) )
                   .brushOn(false)
                   .renderlet(function(chart) {
                       chart.selectAll(".dc-legend-item")
                            .on("click", function(d) { 
-                                          this.site_D.filterExact(d.name);
+                                          self.site_D.filterExact(d.name);
                                           chart.turnOnControls();
                                           dc.redrawAll(); 
-                                       }.bind(scope) ); 
+                                       } ); 
                    });
 
-        this.time_chart.xAxis().ticks(d3.time.hours, 2);
+        self.time_chart.xAxis().ticks(d3.time.hours, 2);
 
         // Add listeners to rotate labels and refresh data table
         var rotate_fun = function(d) { 
@@ -107,49 +105,46 @@ var Failover = new function() {
                 chart.selectAll("svg g g.axis.x g.tick text")
                      .attr("transform", rotate_fun);
             }
-        this.time_chart.on("postRedraw", axis_tick_rotate);
-        this.time_chart.on("postRender", axis_tick_rotate);
+        self.time_chart.on("postRedraw", axis_tick_rotate);
+        self.time_chart.on("postRender", axis_tick_rotate);
 
         // The group chart
-        this.group_chart.width(this.groups_base_dim)
-                .height(this.groups_base_dim)
-                .radius(this.groups_radius)
-                .innerRadius(0.3*this.groups_radius)
-                .dimension(this.group_D)
-                .group(this.group_G)
+        self.group_chart.width(self.groups_base_dim)
+                .height(self.groups_base_dim)
+                .radius(self.groups_radius)
+                .innerRadius(0.3*self.groups_radius)
+                .dimension(self.group_D)
+                .group(self.group_G)
                 .minAngleForLabel(0)
                 .ordinalColors(["#ff7f0e", "#17becf", "#2ca02c"])
                 .title(function(d) { return d.value + " Hits"; })
                 .label(function (d) {
-                    if (this.group_chart.hasFilter() && !this.group_chart.hasFilter(d.key))
+                    if (self.group_chart.hasFilter() && !self.group_chart.hasFilter(d.key))
                             return "0%";
-                        return (100 * d.value / this.all.value()).toFixed(2) + "%";
-                    }.bind(scope))
-                .legend( dc.legend().x(this.groups_base_dim).y(50).gap(10) );
+                        return (100 * d.value / self.all.value()).toFixed(2) + "%";
+                    })
+                .legend( dc.legend().x(self.groups_base_dim).y(50).gap(10) );
 
         // The host (squid/not squid) chart
-        this.squid_chart.width(this.groups_base_dim)
-                .height(this.groups_base_dim)
-                .radius(this.groups_radius)
-                .innerRadius(0.3*this.groups_radius)
-                .dimension(this.squid_D)
-                .group(this.squid_G)
+        self.squid_chart.width(self.groups_base_dim)
+                .height(self.groups_base_dim)
+                .radius(self.groups_radius)
+                .innerRadius(0.3*self.groups_radius)
+                .dimension(self.squid_D)
+                .group(self.squid_G)
                 .title(function(d) { return d.value + " Hits"; })
                 .label(function (d) {
-                    if (this.squid_chart.hasFilter() && !this.squid_chart.hasFilter(d.key))
+                    if (self.squid_chart.hasFilter() && !self.squid_chart.hasFilter(d.key))
                             return "0%";
-                        return (100 * d.value / this.all.value()).toFixed(2) + "%";
-                    }.bind(scope))
-                .legend( dc.legend().x(this.groups_base_dim).y(50).gap(10) )
-                .renderlet( function(chart) {
-                        this.draw_squids();
-                    }.bind(scope));
+                        return (100 * d.value / self.all.value()).toFixed(2) + "%";
+                    })
+                .legend( dc.legend().x(self.groups_base_dim).y(50).gap(10) )
 
         // Table widget for displaying failover details
-        this.sort_order = {false: d3.descending, 
-                           true: d3.ascending};
-        this.current_sort_order = false;
-        this.hosts_table.dimension(this.site_D)
+        self.sort_order = {false: d3.ascending, 
+                           true: d3.descending};
+        self.current_sort_order = false;
+        self.hosts_table.dimension(self.site_D)
                 .group(function(d) { return d.Sites; })
                 .columns([
                         function(d) { 
@@ -157,45 +152,44 @@ var Failover = new function() {
                                 alias = ( d.Alias === '' ? host : d.Alias );
                             return '<span title="Host: ' + host + '">' + alias + '</span>'; 
                         },
-                        function(d) { return this.squid_place(d.IsSquid); }.bind(scope),
-                        function(d) { return this.date_format(d.Timestamp); }.bind(scope),
-                        function(d) { return d.Hits; },
-                        function(d) { return size_natural(d.Bandwidth); },
-                        function(d) { return size_natural(d.BandwidthRate) + "/s"; }
+                        function(d) {
+                            var spec = d.IsSquid ? "Yes" : "No";
+                            return '<div class="squid-box ' + spec + '">' + spec + '</div>';
+                        },
+                        function(d) { return self.date_format(d.Timestamp); },
+                        function(d) { return '<span title="~ ' + d.HitsRate.toFixed(2) + ' queries/sec">' + d.Hits + '</span>'; },
+                        function(d) { return '<span title="~ ' + size_natural(d.BandwidthRate) + '/sec">' + size_natural(d.Bandwidth) + '</span>'; }
                         ])
                 .sortBy(function(d) { return d.Timestamp; })
-                .order(this.sort_order[this.current_sort_order])
+                .order(self.sort_order[self.current_sort_order])
                 .size(Infinity)
-                .on("filtered", function(chart, filter) {
-                        this.draw_squids();
-                        }.bind(scope))
                 .renderlet(function(table){
                         table.selectAll(".dc-table-group").classed("info", true);
                 });
 
         // Sorting functionality of fields
-        this.hosts_table.selectAll('thead th').on("click", function(d, i){ 
+        self.hosts_table.selectAll('thead th').on("click", function(d, i){ 
             var field = this.innerHTML.replace(/[ ?]/g, '');
 
-            scope.current_sort_order = !scope.current_sort_order;
-            scope.hosts_table.order(scope.sort_order[scope.current_sort_order])
-            scope.hosts_table.sortBy( function(d) { return d[field]; } );
+            self.current_sort_order = !self.current_sort_order;
+            self.hosts_table.order(self.sort_order[self.current_sort_order])
+            self.hosts_table.sortBy( function(d) { return d[field]; } );
             dc.redrawAll();
         }); 
 
         // Draw all objects
         dc.renderAll();
-    }.bind(this);
+    };
 
-    this.start = function() {
-        var q, proxy = this.setup.bind(this);
+    self.start = function() {
+        var q, proxy = self.setup.bind(self);
 
         q = queue().defer(d3.json, "config.json")
-                   .defer(d3.csv, this.data_file);
+                   .defer(d3.csv, self.data_file);
         q.await(proxy);
-    }.bind(this);
+    };
 
-    this.process_data = function(dataset) {
+    self.process_data = function(dataset) {
         var dataset = dataset;
 
         dataset.forEach( function(d) {
@@ -213,60 +207,19 @@ var Failover = new function() {
         });
 
         return dataset;
-    }.bind(this);
+    };
 
-    this.squid_place = function(is_squid) {
-        var spec = {true: "yes", false: "no"};
-        return '<div class="squid-' + spec[is_squid] + '"></div>';
-    }.bind(this);
-
-    this.draw_squids = function() {
-
-        var spec = {  true: { selector: ".squid-yes",
-                            text: "Yes",
-                            color: "#3A9410" },
-                    false: { selector: ".squid-no",
-                            text: "No",
-                            color: "#DE2810" } },
-            width = 40, 
-            height = 20;
-
-        function draw_type(is_squid) {
-            var d3image = d3.selectAll(spec[is_squid].selector),
-                svgcanvas = d3image.append("svg:svg")
-                                .attr("width", width)
-                                .attr("height", height);
-
-            svgcanvas.append("svg:rect")
-                    .attr("x",0)
-                    .attr("y",0)
-                    .attr("width", width)
-                    .attr("height", height)
-                    .style("fill", spec[is_squid].color),
-            svgcanvas.append("svg:text")
-                    .text(spec[is_squid].text)    
-                    .attr("x", width/2)
-                    .attr("y", height/2)
-                    .attr("text-anchor", "middle")
-                    .attr("dominant-baseline", "central")
-                    .style("fill", "white");
-        }
-
-        draw_type(true);
-        draw_type(false);
-    }.bind(this);
-
-    this.reload = function() {
-        d3.csv( this.data_file, 
+    self.reload = function() {
+        d3.csv( self.data_file, 
                 function (error, dataset) {
-                    this.ndx.remove();
-                    this.ndx.add( this.process_data(dataset));
-                    dc.renderAll();
-                    this.update_time_extent(this.period, this.extent_span);
-                }.bind(scope) );
-    }.bind(this);
+                    self.ndx.remove();
+                    self.ndx.add( self.process_data(dataset));
+                    self.update_time_extent(self.period, self.extent_span);
+                    dc.redrawAll();
+                } );
+    };
 
-    this.update_time_extent = function(period, extent_span) {
+    self.update_time_extent = function(period, extent_span) {
 
         var periodObj = minuteBunch(period),
             periodRange = periodObj.range,
@@ -281,20 +234,20 @@ var Failover = new function() {
         // Show the currently plotted time span
         d3.select("#date-start")
           .attr("datetime", extent[0])
-          .text(this.date_format(extent[0]));
+          .text(self.date_format(extent[0]));
         d3.select("#date-end")
           .attr("datetime", extent[1])
-          .text(this.date_format(extent[1]));
+          .text(self.date_format(extent[1]));
 
-        this.extent = extent_pad;
+        self.extent = extent_pad;
 
-    }.bind(this);
+    };
 
-    this.time_chart_reset = function() {
-        this.site_D.filterAll();
-        this.time_chart.turnOffControls(); 
+    self.time_chart_reset = function() {
+        self.site_D.filterAll();
+        self.time_chart.turnOffControls(); 
         dc.redrawAll(); 
-    }.bind(this);
+    };
 }
 
 Failover.start();

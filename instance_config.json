@@ -1,37 +1,37 @@
 {
- "record_file": "/tmp/failover-record.csv",
- "history": {
-   "span": 72,
-   "period": 60
- },
- "groups": {
-   "cmsfnalbp": {
-      "name": "CMS Fermilab Frontier Backup Proxies", 
-      "rate_threshold": 2.77778, 
-      "awstats": [
-         "fnal-cmsbproxy1", 
-         "fnal-cmsbproxy2"
-      ], 
-      "file_last_stats": "/tmp/last_stats_fnal-bps.csv"
+   "record_file": "/tmp/luis-failover-record.csv", 
+   "groups": {
+      "cmscernbp": {
+         "rate_threshold": 2.7777799999999999, 
+         "file_last_stats": "/tmp/luis-last_stats_cern-bps.csv", 
+         "awstats": [
+            "cmsbpfrontier1", 
+            "cmsbpfrontier2"
+         ], 
+         "name": "CMS CERN Frontier Backup Proxies"
+      }, 
+      "cmscernct": {
+         "rate_threshold": 2.7777799999999999, 
+         "file_last_stats": "/tmp/luis-last_stats_launchpads.csv", 
+         "awstats": [
+            "cmsfrontier1", 
+            "cmsfrontier2", 
+            "cmsfrontier3"
+         ], 
+         "name": "CMS CERN Frontier Launchpads"
+      }, 
+      "cmsfnalbp": {
+         "rate_threshold": 2.7777799999999999, 
+         "file_last_stats": "/tmp/luis-last_stats_fnal-bps.csv", 
+         "awstats": [
+            "fnal-cmsbproxy1", 
+            "fnal-cmsbproxy2"
+         ], 
+         "name": "CMS Fermilab Frontier Backup Proxies"
+      }
    }, 
-   "cmscernbp": {
-      "name": "CMS CERN Frontier Backup Proxies", 
-      "rate_threshold": 2.77778, 
-      "awstats": [
-         "cmsbpfrontier1", 
-         "cmsbpfrontier2"
-      ], 
-      "file_last_stats": "/tmp/last_stats_cern-bps.csv"
-   }, 
-   "cmscernct": {
-      "name": "CMS CERN Frontier Launchpads", 
-      "rate_threshold": 2.77778, 
-      "awstats": [
-         "cmsfrontier1", 
-         "cmsfrontier2", 
-         "cmsfrontier3"
-      ], 
-      "file_last_stats": "/tmp/last_stats_launchpads.csv"
+   "history": {
+      "span": 72, 
+      "period": 60
    }
- }
 }

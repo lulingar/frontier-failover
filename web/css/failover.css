@@ -1,20 +1,18 @@
-  .squid-yes {
+  .squid-box {
      width: 40px;
      height: 20px;
-  }
-
-  .squid-yes rect {
-     fill-opacity : 1;
-     fill  : red;
-     width : 100%;
-     height : 100%;
-  }
-
-  .squid-yes text {
-     fill : white;
-     text-anchor: middle;
-  }
+     text-align: center;
+     color: white;
+     line-height: 20px;
+  }   
+  .Yes { background: #3A9410; }   
+  .No { background: #DE2810; }  
 
   #group-chart svg { width: 380px; }
   #squid-chart svg { width: 300px; }
-  #time-chart .fadeout { fill-opacity: 0; }
+
+  #time-chart .fadeout { fill-opacity: 0.05; }
+  #time-chart .grid-line line {
+     opacity: 0.4;
+     stroke: #000000;
+  }

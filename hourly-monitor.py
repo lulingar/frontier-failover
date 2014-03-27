@@ -177,7 +177,7 @@ def excess_failover_check (awdata, site_rate_threshold):
 
 def gen_report (offending, groupname, geo):
 
-    print "Failover activity to %s:" % groupname
+    print "Failover activity to %s:" % groupname, 
 
     if offending is None:
         print " None.\n"
@@ -191,7 +191,7 @@ def gen_report (offending, groupname, geo):
         pd.options.display.width = 130
         pd.options.display.max_rows = 100
 
-        print for_report.set_index(['Sites', 'IsSquid', 'Host']).sortlevel(0), "\n"
+        print '\n', for_report.set_index(['Sites', 'IsSquid', 'Host']).sortlevel(0), "\n"
 
     else:
         print " None.\n"
@@ -264,9 +264,9 @@ def reduce_to_rank (dataframe, columns, ranks=5, reduction_ops={}, tagged_fields
 def mark_activity_for_mail (records):
 
     x = records[['Sites', 'Timestamp']].drop_duplicates()
-    # Wait is the time (in hours) elapsed between failover events
-    x['Wait'] = x.groupby('Sites')['Timestamp'].diff()/3600.0
-    x.Wait = x.Wait.fillna(0).round().astype(int) - 1
+    # Wait is the time (in hours) elapsed between failover event records
+    x['Wait'] = x.groupby('Sites')['Timestamp'].diff().fillna(0)/3600.0
+    x.Wait = x.Wait.round().astype(int) - 1
     x.Timestamp = x.Timestamp.apply(pd.to_datetime, unit='s')
 
     # persistent failover is that which has no wait (i.e. happens continuously)
@@ -274,7 +274,6 @@ def mark_activity_for_mail (records):
     to_report = persistent.Sites.unique()
 
     return to_report
-
 
 if __name__ == "__main__":
     sys.exit(main())

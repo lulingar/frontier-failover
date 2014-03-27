@@ -14,6 +14,8 @@ for file in ${record_files}; do
     cp $file $file.0
 done
 
+echo
+echo "========================================================="
 echo "Failover Monitor starting at $(date)"
 echo
 ${CUSTOM_PYTHON_VIRTUALENV}/bin/python -W ignore::DeprecationWarning $here/hourly-monitor.py
