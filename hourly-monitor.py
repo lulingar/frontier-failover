@@ -131,7 +131,7 @@ def save_last_data (last_stats_file, data, timestamp):
 
     fobj = open(last_stats_file, 'w')
     fobj.write( str(datetime_to_UTC_epoch(timestamp)) + '\n' )
-    data.reset_index().to_csv(fobj, index=False)
+    data.to_csv(fobj, index=False)
     fobj.close()
 
 def datetime_to_UTC_epoch (dt):
@@ -177,7 +177,7 @@ def excess_failover_check (awdata, site_rate_threshold):
 
 def gen_report (offending, groupname, geo):
 
-    print "Failover activity to %s:" % groupname, 
+    print "Failover activity to %s:" % groupname,
 
     if offending is None:
         print " None.\n"
