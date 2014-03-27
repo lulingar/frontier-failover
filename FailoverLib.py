@@ -31,8 +31,9 @@ def load_awstats_data (machine, day=None):
         day = datetime.today().day
 
     aw_url = server + url.format(instance=machine, day=day)
-    dataframe = pd.read_html( aw_url, header = 0,
-                              attrs = {'class': 'aws_data'})[1]
+    dataframe = pd.read_html(aw_url, attrs={'class': 'aws_data'},
+                             match='Unique visitors', infer_types=False,
+                             header=0)[0]
 
     if isinstance(dataframe, pd.DataFrame):
 
@@ -66,6 +67,8 @@ def download_aggregated_awstats_data (machines, day=None):
     aggregated.reset_index(inplace=True)
 
     aggregated['Ip'] = aggregated['Host'].apply(get_host_ipv4_addr)
+    aggregated['Hits'] = aggregated['Hits'].astype(int)
+    aggregated['Bandwidth'] = aggregated['Bandwidth'].astype(int)
 
     return aggregated
 
