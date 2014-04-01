@@ -274,11 +274,11 @@ def safe_geo_fun (host_id, geo_fun):
     except (socket.gaierror, AttributeError):
         pass
     if not isinstance(isp_u, basestring):
-        isp_u = 'Unknown'
+        isp_u = u'Unknown'
 
     try:
         # Encoding value is const.ENCODING in package pygeoip
-        isp_uc = unicode(isp_u, encoding='iso-8859-1').encode('ascii', 'ignore')
+        isp_uc = isp_u.encode('ascii', 'ignore')
     except Exception as e:
         isp_uc = isp_u
         print "Error when processing host", host_id, repr(isp_u)
