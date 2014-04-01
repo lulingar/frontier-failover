@@ -81,12 +81,14 @@ def get_url (url):
 
 def parse_geolist (geolistdata):
 
-    geo_str = unicode (geolistdata, errors='ignore').encode('utf-8')
-    lines = geo_str.replace('"','').split()
+    geo_str = unicode(geolistdata, errors='ignore')\
+             .encode('ascii', 'ignore')\
+             .replace('"','')
+    simple_spaced = ' '.join(geo_str.split())
 
-    step1 = ' '.join(lines).split('Directory')
+    step1 = simple_spaced.split('Directory')
     step2 = ( line.split() for line in step1 )
-    step3 = filter (lambda e: len(e) == 6, step2)
+    step3 = filter(lambda e: len(e) == 6, step2)
 
     squids = []
 
@@ -266,13 +268,24 @@ def get_squid_host_alias_map (geo_table):
 
 def safe_geo_fun (host_id, geo_fun):
 
+    isp_u = None
     try:
-        isp_uc = geo_fun(host_id).encode('utf-8', 'ignore')
-        # Spaces are removed in the geolist
-        isp = isp_uc.replace(' ', '')
-
+        isp_u = geo_fun(host_id)
     except (socket.gaierror, AttributeError):
-        isp = 'Unknown'
+        pass
+    if not isinstance(isp_u, basestring):
+        isp_u = 'Unknown'
+
+    try:
+        # Encoding value is const.ENCODING in package pygeoip
+        isp_uc = unicode(isp_u, encoding='iso-8859-1').encode('ascii', 'ignore')
+    except Exception as e:
+        isp_uc = isp_u
+        print "Error when processing host", host_id, repr(isp_u)
+        print e
+
+    # Spaces are removed in the geolist
+    isp = isp_uc.replace(' ', '')
 
     return isp
 
@@ -351,4 +364,3 @@ if __name__ == "__main__":
     actions, WN_view, MO_view = parse_exceptionlist( get_url( exception_list_file))
 
     print load_awstats_data('cmsfrontier')
-
