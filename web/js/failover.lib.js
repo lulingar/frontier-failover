@@ -35,3 +35,10 @@ function size_natural (size)
 
     return size_str;
 }
+
+function flatten_array (arr)
+{
+    var flat = [];
+    flat = flat.concat.apply(flat, arr);
+    return flat;
+}

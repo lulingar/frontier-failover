@@ -14,7 +14,9 @@ var Failover = new function() {
     self.hosts_table = dc.dataTable("#hosts-table");
     self.data_file = "failover.csv";
     self.date_format = d3.time.format("%b %d, %Y %I:%M %p");
-    self.sites_legend_item_size = 20;
+    self.sites_legend_item_size = 17;
+    self.time_chart_width = 1024;
+    self.time_chart_height = 450;
     self.groups_base_dim = 150;
     self.groups_legend_width = 200;
     self.groups_radius = self.groups_base_dim/2 - 15;
@@ -53,19 +55,20 @@ var Failover = new function() {
         self.time_sites_G = self.time_site_D.group().reduce(self.addH, self.remH, self.ini);
         self.hits_G = self.hits_D.group().reduce(self.addH, self.remH, self.ini);
         self.site_list = self.site_D.group().all().map( function(d) { return d.key; });
-        self.num_sites = self.site_list.length;
-        self.site_name_lengths = self.site_list.map( function(s) { return s.length; });
-        self.max_length = crossfilter.quicksort(self.site_name_lengths, 0, self.site_name_lengths.length)
-                                .reverse()[0];
-        self.sites_legend_space_v = (1 + self.num_sites) * self.sites_legend_item_size;
-        self.sites_legend_space_h = 7*self.max_length;
+        self.site_names_len = flatten_array( self.site_list.map( function(s) { 
+                            return s.split('\n').map( function(s){ return s.length });
+                        }) );
+        self.site_longest_name = Math.max.apply(0, self.site_names_len);
+        self.num_lines = 1 + self.site_names_len.length;
+        self.sites_legend_space_v = self.num_lines * self.sites_legend_item_size;
+        self.sites_legend_columns = Math.ceil(self.sites_legend_space_v / self.time_chart_height);
+        self.sites_legend_space_h = (7 * self.site_longest_name) * self.sites_legend_columns;
 
         self.update_time_extent(self.period, self.extent_span);
 
         // The time series
-        var time_chart_width = 1024;
-        self.time_chart.width(time_chart_width)
-                  .height(415)
+        self.time_chart.width(self.time_chart_width)
+                  .height(self.time_chart_height)
                   .margins({top: 30, right: 30+self.sites_legend_space_h, bottom: 60, left: 60})
                   .chart( function(c) { return dc.barChart(c) } )
                   .ordinalColors(self.sites_color_scale)
@@ -84,7 +87,7 @@ var Failover = new function() {
                   .legend( dc.legend()
                              .x( 1024-self.sites_legend_space_h ).y(10)
                              .itemWidth(150).itemHeight(self.sites_legend_item_size)
-                             .gap(5) )
+                             .gap(4) )
                   .brushOn(false)
                   .renderlet(function(chart) {
                       chart.selectAll(".dc-legend-item")
@@ -204,6 +207,7 @@ var Failover = new function() {
             d.Bandwidth = +d.Bandwidth;
             d.BandwidthRate = +d.BandwidthRate;
             d.IsSquid = (d.IsSquid == "True");
+            d.Sites = d.Sites.replace(/; /g, '\n');
         });
 
         return dataset;
