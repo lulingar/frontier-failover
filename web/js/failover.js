@@ -148,7 +148,7 @@ var Failover = new function() {
                            true: d3.descending};
         self.current_sort_order = false;
         self.table_field_map = { 'Host': 'Host', 'Is Squid?': 'IsSquid',
-                                 'Time': 'Timestamp', 'Hits', 'Hits',
+                                 'Time': 'Timestamp', 'Hits': 'Hits',
                                  'Bandwidth' : 'Bandwidth' };
         self.hosts_table.dimension(self.site_D)
                 .group(function(d) { return d.Sites; })
