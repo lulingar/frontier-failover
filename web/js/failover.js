@@ -147,6 +147,9 @@ var Failover = new function() {
         self.sort_order = {false: d3.ascending, 
                            true: d3.descending};
         self.current_sort_order = false;
+        self.table_field_map = { 'Host': 'Host', 'Is Squid?': 'IsSquid',
+                                 'Time': 'Timestamp', 'Hits', 'Hits',
+                                 'Bandwidth' : 'Bandwidth' };
         self.hosts_table.dimension(self.site_D)
                 .group(function(d) { return d.Sites; })
                 .columns([
@@ -163,8 +166,8 @@ var Failover = new function() {
                         function(d) { return '<span title="~ ' + d.HitsRate.toFixed(2) + ' queries/sec">' + d.Hits + '</span>'; },
                         function(d) { return '<span title="~ ' + size_natural(d.BandwidthRate) + '/sec">' + size_natural(d.Bandwidth) + '</span>'; }
                         ])
-                .sortBy(function(d) { return d.Timestamp; })
-                .order(self.sort_order[self.current_sort_order])
+                .sortBy(dc.pluck('Timestamp'))
+                .order(d3.descending)
                 .size(Infinity)
                 .renderlet(function(table){
                         table.selectAll(".dc-table-group").classed("info", true);
@@ -172,11 +175,11 @@ var Failover = new function() {
 
         // Sorting functionality of fields
         self.hosts_table.selectAll('thead th').on("click", function(d, i){ 
-            var field = this.innerHTML.replace(/[ ?]/g, '');
+            var field = self.table_field_map[this.innerHTML];
 
             self.current_sort_order = !self.current_sort_order;
             self.hosts_table.order(self.sort_order[self.current_sort_order])
-            self.hosts_table.sortBy( function(d) { return d[field]; } );
+            self.hosts_table.sortBy(dc.pluck(field));
             dc.redrawAll();
         }); 
 
