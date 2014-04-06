@@ -106,8 +106,8 @@ def analyze_failovers_to_group (config, groupname, now, past_records, geo, tagge
     else:
         offending = None
 
-    failovers = update_record (offending, past_records, now, geo)
-    gen_report (offending, groupconf['name'], geo)
+    failovers = update_record (offending, past_records, now)
+    gen_report (offending, groupconf['name'])
 
     return failovers
 
@@ -136,7 +136,7 @@ def save_last_data (last_stats_file, data, timestamp):
 
 def datetime_to_UTC_epoch (dt):
 
-    return calendar.timegm( dt.utctimetuple())
+    return int(calendar.timegm( dt.utctimetuple()))
 
 def compute_traffic_delta (now_stats_indexless, last_stats_indexless, now_timestamp, last_timestamp):
 
@@ -150,15 +150,22 @@ def compute_traffic_delta (now_stats_indexless, last_stats_indexless, now_timest
     # The deltas of newly recorded hosts are their very data values
     deltas.fillna( now_stats[cols], inplace=True )
     # Filter out hosts whose recent activity is null
-    deltas = deltas[ deltas['Hits'] > 0 ]
+    are_active = (deltas['Hits'] > 0) & (deltas['Bandwidth'] > 0)
+    active = deltas[are_active]
+
+    inactive = deltas[~are_active]
+    inactive['WasOld'] = inactive.index
+    inactive['WasOld'] = inactive['WasOld'].isin(last_stats.index)
+    print "New entries marked as inactive:"
+    print inactive
 
     # Add computed columns to table, dropping the original columns since they
-    # are a long-running accumulation.
+    # are an accumulation.
     delta_t = datetime_to_UTC_epoch(now_timestamp) - datetime_to_UTC_epoch(last_timestamp)
-    rates = deltas.copy() / float(delta_t)
-    rates.rename(columns = lambda x: x + "Rate", inplace=True)
+    rates = active / float(delta_t)
+    rates = rates.rename(columns = lambda x: x + "Rate")
     table = now_stats.drop(cols, axis=1)\
-                     .join([deltas, rates], how='inner')
+                     .join([active, rates], how='inner')
     table.reset_index(inplace=True)
 
     return table
@@ -175,7 +182,7 @@ def excess_failover_check (awdata, site_rate_threshold):
 
     return offending.copy()
 
-def gen_report (offending, groupname, geo):
+def gen_report (offending, groupname):
 
     print "Failover activity to %s:" % groupname,
 
@@ -196,16 +203,14 @@ def gen_report (offending, groupname, geo):
     else:
         print " None.\n"
 
-def update_record (offending, past_records, now, geo):
+def update_record (offending, past_records, now):
+
+    if offending is None: return None
 
     now_secs = datetime_to_UTC_epoch(now)
 
-    if offending is None:
-        return
-
     to_add = offending.copy()
-    to_add['Timestamp'] = int(now_secs)
-    to_add['IsSquid'] = to_add['Ip'].isin(geo['Ip'])
+    to_add['Timestamp'] = now_secs
 
     if isinstance(past_records, pd.DataFrame):
         update = pd.concat([past_records, to_add], ignore_index=True)
@@ -216,14 +221,13 @@ def update_record (offending, past_records, now, geo):
 
 def write_failover_record (record, file_path):
 
-    column_order = ["Timestamp", "Group", "Sites", "Host", "Alias", "IsSquid",
+    column_order = ["Timestamp", "Group", "Sites", "Host", "Ip", "Alias", "IsSquid",
                     "Bandwidth", "BandwidthRate", "Hits", "HitsRate"]
 
-    failover_record = record.drop('Ip', axis=1)
+    failover_record = record.reindex(columns=column_order)
     failover_record['Bandwidth'] = failover_record['Bandwidth'].astype(int)
     failover_record['Hits'] = failover_record['Hits'].astype(int)
     failover_record['Timestamp'] = failover_record['Timestamp'].astype(int)
-    failover_record.reindex(columns=column_order, inplace=True)
 
     reduced_file_parts = file_path.split('.')
     reduced_file_parts.insert(len(reduced_file_parts)-1, 'reduced')
