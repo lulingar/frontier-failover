@@ -20,10 +20,14 @@ var Failover = new function() {
     self.groups_base_dim = 150;
     self.groups_legend_width = 200;
     self.groups_radius = self.groups_base_dim/2 - 15;
-    self.sites_color_scale = ["#a6cee3", "#1f78b4", "#b2df8a", "#33a02c", 
-                              "#fb9a99", "#e31a1c", "#fdbf6f", "#ff7f00",
-                              "#cab2d6", "#6a3d9a", "#73b732", "#b15928",
-                              "#6a730c", "#54305e"]
+    self.sites_color_scale = ['#e41a1c', '#b93343', '#884f6f', '#576c9b',
+                              '#3983ad', '#3f918e', '#459d73', '#4bab53',
+                              '#5c9c5b', '#718175', '#86658e', '#9c509c',
+                              '#b65c73', '#d36a45', '#f07817', '#ff9107',
+                              '#ffb516', '#ffd924', '#fff931', '#ead730',
+                              '#d1a72d', '#b7772a', '#ad5a35', '#c46660',
+                              '#d87186', '#ef7db0', '#e685b8', '#cb8cad',
+                              '#b193a3', '#999999'];
 
     self.setup = function(error, config, dataset) {
 
