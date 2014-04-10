@@ -16,3 +16,21 @@
      opacity: 0.4;
      stroke: #000000;
   }
+  
+  .header-active { background-color: #CCCCCC; }
+  .header-active>.glyphicon {
+     display: inline; 
+     float: right;
+  }
+  
+  .header-inactive { background-color: #FFFFFF; }
+  .header-inactive>.glyphicon {
+     display: none; 
+     float: right;
+  }
+
+  .dc-chart h4 {
+     margin-top: 0px;
+     margin-bottom: 0px;
+  }
+

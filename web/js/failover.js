@@ -29,6 +29,14 @@ var Failover = new function() {
                               '#d87186', '#ef7db0', '#e685b8', '#cb8cad',
                               '#b193a3', '#999999'];
 
+    self.start = function() {
+        var q;
+
+        q = queue().defer(d3.json, "config.json")
+                   .defer(d3.csv, self.data_file);
+        q.await(self.setup);
+    };
+
     self.setup = function(error, config, dataset) {
 
         self.config = config;
@@ -99,6 +107,7 @@ var Failover = new function() {
                                           self.site_D.filterExact(d.name);
                                           chart.turnOnControls();
                                           dc.redrawAll(); 
+                                          chart.select('.filter').text(d.name);
                                        } ); 
                    });
 
@@ -178,25 +187,34 @@ var Failover = new function() {
                 });
 
         // Sorting functionality of fields
-        self.hosts_table.selectAll('thead th').on("click", function(d, i){ 
-            var field = self.table_field_map[this.innerHTML];
+        self.hosts_table_headers = self.hosts_table.selectAll('thead th');
+        self.hosts_table_headers.on("click", function(d){ 
+            var header = d3.select(this),
+                selected = header.select('.header-text').text(),
+                field = self.table_field_map[selected],
+                glyph = d3.select(this).select('.glyphicon'),
+                all = self.hosts_table_headers.select('.glyphicon');
+           
+            self.hosts_table_headers.classed('header-inactive', function() {                
+                    var current = d3.select(this).select('.header-text').text();
+                    return !(current == selected);
+                });
+            self.hosts_table_headers.classed('header-active', function() {                
+                    var current = d3.select(this).select('.header-text').text();
+                    return (current == selected);
+                });
 
             self.current_sort_order = !self.current_sort_order;
-            self.hosts_table.order(self.sort_order[self.current_sort_order])
+            glyph.classed({'glyphicon-chevron-down': self.current_sort_order,
+                           'glyphicon-chevron-up': !self.current_sort_order});
+
+            self.hosts_table.order(self.sort_order[self.current_sort_order]);
             self.hosts_table.sortBy(dc.pluck(field));
             dc.redrawAll();
         }); 
 
         // Draw all objects
         dc.renderAll();
-    };
-
-    self.start = function() {
-        var q, proxy = self.setup.bind(self);
-
-        q = queue().defer(d3.json, "config.json")
-                   .defer(d3.csv, self.data_file);
-        q.await(proxy);
     };
 
     self.process_data = function(dataset) {
