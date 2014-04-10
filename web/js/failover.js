@@ -169,7 +169,7 @@ var Failover = new function() {
                         function(d) {
                             var host = d.Host,
                                 alias = ( d.Alias === '' ? host : d.Alias );
-                            return '<span title="Ip: ' + d.Ip + '">' + alias + '</span>';
+                            return '<span title="IP: ' + d.Ip + '">' + alias + '</span>';
                         },
                         function(d) {
                             var spec = d.IsSquid ? "Yes" : "No";
