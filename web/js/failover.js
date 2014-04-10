@@ -4,9 +4,9 @@
 var Failover = new function() {
 
     var self = this;
-    // JS weirdness: By default, when not specified otherwise, functions  
+    // JS weirdness: By default, when not specified otherwise, functions
     //  have the object "this" pointing to the Global scope (a.k.a. "Window")
-    //  So to reference to this object, use "self" instead. 
+    //  So to reference to this object, use "self" instead.
 
     self.time_chart = dc.seriesChart("#time-chart");
     self.group_chart = dc.pieChart("#group-chart");
@@ -55,10 +55,10 @@ var Failover = new function() {
 
         self.time_D = self.ndx.dimension( function(d) { return d.Timestamp; });
         self.group_D = self.ndx.dimension( function(d) {
-                                    return self.config.groups[d.Group].name; 
+                                    return self.config.groups[d.Group].name;
                                 });
-        self.squid_D = self.ndx.dimension( function(d) { 
-                                    return d.IsSquid ? "Squid" : "Worker Node"; 
+        self.squid_D = self.ndx.dimension( function(d) {
+                                    return d.IsSquid ? "Squid" : "Worker Node";
                                 });
         self.hits_D = self.ndx.dimension( function(d) { return d.Hits; });
         self.time_site_D = self.ndx.dimension( function(d) { return [d.Timestamp, d.Sites]; });
@@ -67,7 +67,7 @@ var Failover = new function() {
         self.time_sites_G = self.time_site_D.group().reduce(self.addH, self.remH, self.ini);
         self.hits_G = self.hits_D.group().reduce(self.addH, self.remH, self.ini);
         self.site_list = self.site_D.group().all().map( function(d) { return d.key; });
-        self.site_names_len = flatten_array( self.site_list.map( function(s) { 
+        self.site_names_len = flatten_array( self.site_list.map( function(s) {
                             return s.split('\n').map( function(s){ return s.length });
                         }) );
         self.site_longest_name = Math.max.apply(0, self.site_names_len);
@@ -103,21 +103,21 @@ var Failover = new function() {
                   .brushOn(false)
                   .renderlet(function(chart) {
                       chart.selectAll(".dc-legend-item")
-                           .on("click", function(d) { 
+                           .on("click", function(d) {
                                           self.site_D.filterExact(d.name);
                                           chart.turnOnControls();
-                                          dc.redrawAll(); 
+                                          dc.redrawAll();
                                           chart.select('.filter').text(d.name);
-                                       } ); 
+                                       } );
                    });
 
         self.time_chart.xAxis().ticks(d3.time.hours, 2);
 
         // Add listeners to rotate labels and refresh data table
-        var rotate_fun = function(d) { 
-                return "rotate(-90) translate(-25, -12)"; 
+        var rotate_fun = function(d) {
+                return "rotate(-90) translate(-25, -12)";
             };
-        var axis_tick_rotate = function(chart) { 
+        var axis_tick_rotate = function(chart) {
                 chart.selectAll("svg g g.axis.x g.tick text")
                      .attr("transform", rotate_fun);
             }
@@ -157,7 +157,7 @@ var Failover = new function() {
                 .legend( dc.legend().x(self.groups_base_dim).y(50).gap(10) )
 
         // Table widget for displaying failover details
-        self.sort_order = {false: d3.ascending, 
+        self.sort_order = {false: d3.ascending,
                            true: d3.descending};
         self.current_sort_order = false;
         self.table_field_map = { 'Host': 'Host', 'Is Squid?': 'IsSquid',
@@ -166,10 +166,10 @@ var Failover = new function() {
         self.hosts_table.dimension(self.site_D)
                 .group(function(d) { return d.Sites; })
                 .columns([
-                        function(d) { 
+                        function(d) {
                             var host = d.Host,
                                 alias = ( d.Alias === '' ? host : d.Alias );
-                            return '<span title="Host: ' + host + '">' + alias + '</span>'; 
+                            return '<span title="Ip: ' + d.Ip + '">' + alias + '</span>';
                         },
                         function(d) {
                             var spec = d.IsSquid ? "Yes" : "No";
@@ -188,18 +188,18 @@ var Failover = new function() {
 
         // Sorting functionality of fields
         self.hosts_table_headers = self.hosts_table.selectAll('thead th');
-        self.hosts_table_headers.on("click", function(d){ 
+        self.hosts_table_headers.on("click", function(d){
             var header = d3.select(this),
                 selected = header.select('.header-text').text(),
                 field = self.table_field_map[selected],
                 glyph = d3.select(this).select('.glyphicon'),
                 all = self.hosts_table_headers.select('.glyphicon');
-           
-            self.hosts_table_headers.classed('header-inactive', function() {                
+
+            self.hosts_table_headers.classed('header-inactive', function() {
                     var current = d3.select(this).select('.header-text').text();
                     return !(current == selected);
                 });
-            self.hosts_table_headers.classed('header-active', function() {                
+            self.hosts_table_headers.classed('header-active', function() {
                     var current = d3.select(this).select('.header-text').text();
                     return (current == selected);
                 });
@@ -211,7 +211,7 @@ var Failover = new function() {
             self.hosts_table.order(self.sort_order[self.current_sort_order]);
             self.hosts_table.sortBy(dc.pluck(field));
             dc.redrawAll();
-        }); 
+        });
 
         // Draw all objects
         dc.renderAll();
@@ -239,7 +239,7 @@ var Failover = new function() {
     };
 
     self.reload = function() {
-        d3.csv( self.data_file, 
+        d3.csv( self.data_file,
                 function (error, dataset) {
                     self.ndx.remove();
                     self.ndx.add( self.process_data(dataset));
@@ -274,8 +274,8 @@ var Failover = new function() {
 
     self.time_chart_reset = function() {
         self.site_D.filterAll();
-        self.time_chart.turnOffControls(); 
-        dc.redrawAll(); 
+        self.time_chart.turnOffControls();
+        dc.redrawAll();
     };
 }
 

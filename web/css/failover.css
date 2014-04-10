@@ -4,9 +4,11 @@
      text-align: center;
      color: white;
      line-height: 20px;
-  }   
-  .Yes { background: #3A9410; }   
-  .No { background: #DE2810; }  
+     margin-left: auto;
+     margin-right: auto;
+  }
+  .Yes { background: #3A9410; }
+  .No { background: #DE2810; }
 
   #group-chart svg { width: 380px; }
   #squid-chart svg { width: 300px; }
@@ -16,18 +18,20 @@
      opacity: 0.4;
      stroke: #000000;
   }
-  
-  .header-active { background-color: #CCCCCC; }
-  .header-active>.glyphicon {
-     display: inline; 
+
+  .header-active { background-color: #FFDD55; }
+  .header-active : hover { background-color: #FFCC00; }
+  .header-active > .glyphicon {
+     visibility: visible;
      float: right;
   }
-  
   .header-inactive { background-color: #FFFFFF; }
-  .header-inactive>.glyphicon {
-     display: none; 
+  .header-inactive : hover { background-color: #EEEEEE; }
+  .header-inactive > .glyphicon {
+     visibility: hidden;
      float: right;
   }
+  .header-active, .header-inactive { cursor: pointer; }
 
   .dc-chart h4 {
      margin-top: 0px;
