@@ -81,7 +81,7 @@ var Failover = new function() {
         // The time series
         self.time_chart.width(self.time_chart_width)
                   .height(self.time_chart_height)
-                  .margins({top: 30, right: 30+self.sites_legend_space_h, bottom: 60, left: 60})
+                  .margins({top: 30, right: 30+self.sites_legend_space_h, bottom: 60, left: 70})
                   .chart( function(c) { return dc.barChart(c) } )
                   .ordinalColors(self.sites_color_scale)
                   .dimension(self.time_site_D)
@@ -103,12 +103,9 @@ var Failover = new function() {
                   .brushOn(false)
                   .renderlet(function(chart) {
                       chart.selectAll(".dc-legend-item")
-                           .on("click", function(d) {
-                                          self.site_D.filterExact(d.name);
-                                          chart.turnOnControls();
-                                          dc.redrawAll();
-                                          chart.select('.filter').text(d.name);
-                                       } );
+                           .on("click", function(d) { self.site_filter(d.name); });
+                      chart.selectAll(".sub .bar")
+                           .on("click", function(d) { self.site_filter(d.layer); });
                    });
 
         self.time_chart.xAxis().ticks(d3.time.hours, 2);
@@ -123,6 +120,16 @@ var Failover = new function() {
             }
         self.time_chart.on("postRedraw", axis_tick_rotate);
         self.time_chart.on("postRender", axis_tick_rotate);
+
+        // Site filtering actions
+        self.site_filter = function (name) {
+                               self.site_D.filterExact(name);
+                               self.time_chart.select('.filter').text(
+                                  name.split('\n')[0] + ( name.contains('\n') ? ', ...' : '' )
+                               );
+                               self.time_chart.turnOnControls();
+                               dc.redrawAll();
+        }
 
         // The group chart
         self.group_chart.width(self.groups_base_dim)
