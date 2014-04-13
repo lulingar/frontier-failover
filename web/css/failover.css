@@ -20,14 +20,14 @@
   }
 
   .header-active { background-color: #FFDD55; }
-  .header-active : hover { background-color: #FFCC00; }
-  .header-active > .glyphicon {
+  .header-active:hover { background-color: #FFCC00; }
+  .header-active>.glyphicon {
      visibility: visible;
      float: right;
   }
   .header-inactive { background-color: #FFFFFF; }
-  .header-inactive : hover { background-color: #EEEEEE; }
-  .header-inactive > .glyphicon {
+  .header-inactive:hover { background-color: #EEEEEE; }
+  .header-inactive>.glyphicon {
      visibility: hidden;
      float: right;
   }
