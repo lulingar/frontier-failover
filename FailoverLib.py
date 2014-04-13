@@ -9,6 +9,7 @@ import pygeoip
 
 from datetime import datetime
 from functools import partial
+from unidecode import unidecode
 
 def to_bytes (sz):
 
@@ -79,14 +80,14 @@ def get_url (url):
 
     return data
 
-def parse_geolist (geolistdata):
+def parse_geolist (geolist_raw):
 
-    geo_str = unicode(geolistdata, errors='ignore')\
-             .encode('ascii', 'ignore')\
-             .replace('"','')
-    simple_spaced = ' '.join(geo_str.split())
+    geo_str_unicode = unicode(geolist_raw, pygeoip.ENCODING)
+    geo_str_ascii = unidecode(geo_str_unicode)
+    geo_str = geo_str_ascii.replace('"','')
+    simply_spaced = ' '.join(geo_str.split())
 
-    step1 = simple_spaced.split('Directory')
+    step1 = simply_spaced.split('Directory')
     step2 = ( line.split() for line in step1 )
     step3 = filter(lambda e: len(e) == 6, step2)
 
@@ -276,16 +277,8 @@ def safe_geo_fun (host_id, geo_fun):
     if not isinstance(isp_u, basestring):
         isp_u = u'Unknown'
 
-    try:
-        # Encoding value is const.ENCODING in package pygeoip
-        isp_uc = isp_u.encode('ascii', 'ignore')
-    except Exception as e:
-        isp_uc = isp_u
-        print "Error when processing host", host_id, repr(isp_u)
-        print e
-
-    # Spaces are removed in the geolist
-    isp = isp_uc.replace(' ', '')
+    isp_uc = unidecode(isp_u)     # Sensibly transliterate non-ASCII characters
+    isp = isp_uc.replace(' ', '')           # Spaces are removed in the geolist
 
     return isp
 
@@ -329,7 +322,7 @@ class CMSTagger(object):
 
         x = slice_cp['Site'].str.split('_', 2)
         slice_cp['BaseSite'] = x.str.get(1) + '_' + x.str.get(2)
-        slice_cp['Tier'] =  x.str.get(0)
+        slice_cp['Tier'] = x.str.get(0)
 
         z = slice_cp.groupby([other_field, 'BaseSite'])['Tier']
         w = z.agg( lambda df: ",".join(sorted(df.values)) ).reset_index(level='BaseSite')

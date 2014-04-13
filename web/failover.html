@@ -41,9 +41,9 @@
         <div class="col-md-6">
             <div id="group-chart" class="dc-chart">
                 <div class="row">
-                    <div class="col-md-5"><h4>Machine Groups</h4></div>
-                    <div class="col-md-1">
-                        <a class="reset" href="javascript:Failover.group_chart.filterAll(); dc.redrawAll();" style="display: none;">reset</a>
+                    <div><h4>Machine Groups</h4></div>
+                    <div>
+                        <a class="reset" href="javascript:Failover.group_chart.filterAll(); dc.redrawAll();" style="display: none;">Reset</a>
                         <span class="reset" style="display: none;"></span>            
                     </div>
                 </div>
@@ -54,9 +54,9 @@
         <div class="col-md-6">
             <div id="squid-chart" class="dc-chart">
                 <div class="row">
-                    <div class="col-md-5"><h4>Host Type</h4></div>
-                    <div class="col-md-1">
-                        <a class="reset" href="javascript:Failover.squid_chart.filterAll(); dc.redrawAll();" style="display: none;">reset</a>
+                    <div><h4>Host Type</h4></div>
+                    <div>
+                        <a class="reset" href="javascript:Failover.squid_chart.filterAll(); dc.redrawAll();" style="display: none;">Reset</a>
                         <span class="reset" style="display: none;"></span>
                     </div>
                 </div>
@@ -67,9 +67,10 @@
 
     <div class="row">
         <div id="time-chart" class="dc-chart">
-            <div class="col-md-4"><h4>Hits by site per hour</h4></div>
-            <div class="col-md-8">
-                <span class="reset" style="display: none;">Filter <a class="reset" href="javascript:Failover.time_chart_reset();" style="display: none;">(reset)</a>: <span class="filter"></span></span>
+            <div><h4>Hits by site per hour</h4></div>
+            <div>
+                <a class="reset" href="javascript:Failover.time_chart_reset();" style="display: none;">Reset</a>
+                <span class="reset" style="display: none;"> | Filter: <span class="filter"></span></span>
             </div>
             <div class="clearfix"></div>
         </div>
