@@ -123,12 +123,15 @@ var Failover = new function() {
 
         // Site filtering actions
         self.site_filter = function (name) {
+                               var short_n = name.split('\n')[0]
+                                             + (name.contains('\n') ? ', ...' : '');
                                self.site_D.filterExact(name);
-                               self.time_chart.select('.filter').text(
-                                  name.split('\n')[0] + ( name.contains('\n') ? ', ...' : '' )
-                               );
                                self.time_chart.turnOnControls();
                                dc.redrawAll();
+                               // This must be run after redrawAll, else it does not render
+                               self.time_chart.select('.filter')
+                                              .text(short_n)
+                                              .property('title', name);
         }
 
         // The group chart
@@ -140,7 +143,7 @@ var Failover = new function() {
                 .group(self.group_G)
                 .minAngleForLabel(0)
                 .ordinalColors(["#ff7f0e", "#17becf", "#2ca02c"])
-                .title(function(d) { return d.value + " Hits"; })
+                .title(function(d) { return d.key + ": " + d.value + " Hits"; })
                 .label(function (d) {
                     if (self.group_chart.hasFilter() && !self.group_chart.hasFilter(d.key))
                             return "0%";
@@ -155,7 +158,7 @@ var Failover = new function() {
                 .innerRadius(0.3*self.groups_radius)
                 .dimension(self.squid_D)
                 .group(self.squid_G)
-                .title(function(d) { return d.value + " Hits"; })
+                .title(function(d) { return d.key + ": " + d.value + " Hits"; })
                 .label(function (d) {
                     if (self.squid_chart.hasFilter() && !self.squid_chart.hasFilter(d.key))
                             return "0%";
