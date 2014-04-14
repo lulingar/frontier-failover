@@ -174,7 +174,7 @@ var Failover = new function() {
                                  'Time': 'Timestamp', 'Hits': 'Hits',
                                  'Bandwidth' : 'Bandwidth' };
         self.hosts_table.dimension(self.site_D)
-                .group(function(d) { return d.Sites; })
+                .group(function(d) { return d.Sites.replace(/\n/g, ' | '); })
                 .columns([
                         function(d) {
                             var host = d.Host,
