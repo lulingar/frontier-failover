@@ -31,7 +31,7 @@ def main():
 
     actions, WN_view, MO_view = fl.parse_exceptionlist( fl.get_url( exception_list_file))
     geo_0 = fl.parse_geolist( fl.get_url( geolist_file))
-    geo = fl.patch_geo_table(geo_0, MO_view, actions, geoip)
+    geo = fl.patch_geo_table(geo_0, MO_view, WN_view, actions, geoip)
     cms_tagger = fl.CMSTagger(geo, geoip)
 
     current_records = load_records(config['record_file'], now, config['history']['span'])
