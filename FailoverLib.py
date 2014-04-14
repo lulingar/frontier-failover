@@ -174,24 +174,25 @@ def parse_exceptionlist (exceptionlist_data):
 
     return actions, workernode_view, monitoring_view
 
-def patch_geo_table (geo, MO_view, actions, geoip):
+def patch_geo_table (geo, MO_view, WN_view, actions, geoip):
 
-    MO_eview = MO_view.copy()
-    MO_eview['Base'], MO_eview['Spec'] = zip(*MO_eview['Site'].map(cms_site_name_split))
-    MO_eview = MO_eview.merge(actions.reset_index(), how='left', on='Site')\
-                       .fillna('')\
-                       .drop('Site', axis='columns')\
-                       .rename(columns={'Base': 'Site'})
-    MO_eview = MO_eview[ MO_eview.Action != '-' ]
-    MO_eview['Institution'] = MO_eview['Host'].apply(geoip.org_by_name)
-    to_add = MO_eview[ ~(MO_eview.Host.isin(geo.Host) | MO_eview.Host.isin(geo.Alias)) ].copy()
-    to_add.drop(['Action', 'Spec'], axis='columns', inplace=True)
-    new_geo_entries = [ gen_geo_entries(spec['Host'], spec['Institution'], spec['Site'])
-                        for spec in to_add.to_dict('records') ]
-    geo_app = pd.DataFrame( sum(new_geo_entries, []) )
-    new_geo = pd.concat([geo, geo_app], ignore_index=True)
+    geo_new = geo[~geo.IsDNS].copy()
 
-    return new_geo
+    # Add hosts (along with sites) specified to be added as monitoring view
+    MO_to_add = MO_view[~(MO_view.Host.isin(geo_new.Alias) | MO_view.Host.isin(geo_new.Host))].copy()
+    MO_to_add['Institution'] = MO_to_add.Host.apply(geoip.org_by_name)
+    MO_to_add = pd.DataFrame(flatten(gen_geo_entries(r['Host'], r['Institution'], r['Site']) for r in MO_to_add.to_dict('records')))
+    geo_new = pd.concat([geo_new, MO_to_add], ignore_index=True)
+
+    # Remove sites with specified removal action from monitoring view
+    geo_new = geo_new[ ~geo_new.Site.isin(actions[actions == '-'].index) ]
+
+    # Remove worker nodes in sites with no action specified
+    for idx, elem in WN_view[ WN_view.Site.isin(geo_new.Site) ].iterrows():
+        sel = ((geo_new.Alias == elem.Host) | (geo_new.Host == elem.Host)) & (geo_new.Site == elem.Site)
+        geo_new = geo_new[~sel]
+
+    return geo_new
 
 def tag_hosts (dataframe, host_ip_field, squids_institute_sites_map, squids_ip_sites_map, geo, geoip):
 
@@ -252,6 +253,9 @@ def get_dns_addresses (hostname):
     info = socket.getaddrinfo( hostname, 0, socket.AF_INET)
     return set( e[4][0] for e in info )
 
+def flatten (iterator):
+    return sum(iterator, [])
+
 def parse_timestamp_column (series):
 
     epoch_ns = pd.to_datetime(series) - datetime(1970,1,1)
@@ -271,7 +275,7 @@ def safe_geo_fun (host_id, geo_fun):
 
     isp_u = None
     try:
-        isp_u = geo_fun(host_id)
+        isp_u = unicode(geo_fun(host_id))
     except (socket.gaierror, AttributeError):
         pass
     if not isinstance(isp_u, basestring):
