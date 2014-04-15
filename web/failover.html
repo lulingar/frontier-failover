@@ -7,92 +7,96 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
 
     <link rel="stylesheet" type="text/css" href="css/dc.css"/>
-    <link rel="stylesheet" type="text/css" href="css/bootstrap.min.css"/>
+    <link rel="stylesheet" type="text/css" href="//netdna.bootstrapcdn.com/bootstrap/3.1.1/css/bootstrap.min.css"/>
     <link rel="stylesheet" type="text/css" href="css/failover.css"/>
 </head>
 
 <body>
 
 <div class="container">
-    <h1>Frontier Failover history</h1>
 
-    <div class="row">
-        <div class="col-md-8">
-           This is a visual representation of direct connections from non-squid machines to central groups of servers. The charts are both viewers and controllers: they allow for interactive exploration of the failover activity on display.
-        </div>
+    <div class="page-header">
+        <h1>Frontier Failover history</h1>
+        <p>This is a visual representation of direct connections from non-squid machines to central groups of servers. The charts are both viewers and controllers: they allow for interactive exploration of the failover activity on display.</p>
     </div>
 
     <div class="row">
-        <div class="col-md-8">
-                <strong>Time:</strong>
-                <small class="text-muted">
-                <time id="date-start" datetime="1986-09-24 17:45-0500"></time> &ndash;
-                <time id="date-end" datetime="1986-09-24 17:45-0500"></time>
-                </small>
-        </div>
-        <div class="clearfix"></div>
         <div class="col-md-1">
             <div>
                 <button onclick="Failover.reload()" class="btn btn-primary">Update</button>
             </div>
         </div>
+        <div class="col-xs-12 col-sm-6 col-lg-8">
+            <strong>Time:</strong>
+            <p>
+                <small>
+                    <time id="date-start"></time> &ndash;
+                    <time id="date-end"></time>
+                </small>
+            </p>
+        </div>
     </div>
 
     <div class="row">
-        <div class="col-md-4">
+        <div class="col-md-6">
             <div id="group-chart" class="dc-chart">
-                <strong>Machine Groups</strong>
-                <a class="reset" href="javascript:Failover.group_chart.filterAll(); dc.redrawAll();" style="display: none;">
-                    reset
-                </a>
-
+                <div class="row">
+                    <div><h4 class="easy-inline">Machine Groups</h4></div>
+                    <div>
+                        <a class="reset" href="javascript:Failover.group_chart.filterAll(); dc.redrawAll();" style="display: none;">Reset</a>
+                        <span class="reset" style="display: none;"></span>            
+                    </div>
+                </div>
                 <div class="clearfix"></div>
-            </div>
-        </div>
+            </div>          
+        </div>      
 
-        <div class="col-md-4">
+        <div class="col-md-6">
             <div id="squid-chart" class="dc-chart">
-                <strong>Host Type</strong>
-                <a class="reset" href="javascript:Failover.squid_chart.filterAll(); dc.redrawAll();" style="display: none;">
-                    reset
-                </a>
-
+                <div class="row">
+                    <div><h4 class="easy-inline">Host Type</h4></div>
+                    <div>
+                        <a class="reset" href="javascript:Failover.squid_chart.filterAll(); dc.redrawAll();" style="display: none;">Reset</a>
+                        <span class="reset" style="display: none;"></span>
+                    </div>
+                </div>
                 <div class="clearfix"></div>
             </div>
         </div>
-    </div>
+    </div>  
 
     <div class="row">
-       <div id="time-chart" class="dc-chart">
-           <strong>Hits by site per hour</strong>
-           <span class="reset" style="display: none;">Filter: <span class="filter"></span></span>
-           <a class="reset" href="javascript:Failover.time_chart_reset();" style="display: none;">reset</a>
-
-           <div class="clearfix"></div>
-       </div>
-    </div>
-    <div class="row">
-        <p class="muted" >select a time range to zoom in</p>
-        <div id="time-range-chart" class="dc-chart">
+        <div id="time-chart" class="dc-chart">
+            <div><h4 class="easy-inline">Hits by site per hour</h4></div>
+            <div>
+                <a class="reset" href="javascript:Failover.time_chart_reset();" style="display: none;">Reset</a>
+                <span class="reset" style="display: none;"> | <strong>Filter:</strong> <span class="filter"></span></span>
+            </div>
+            <div class="clearfix"></div>
         </div>
     </div>
 
     <div class="row">
-        <strong>Access History Detail</strong>
-        <table class="table table-hover dc-data-table" id="hosts-table">
-            <thead>
-            <tr class="header">
-                <th>Host</th>
-                <th>Is Squid?</th>
-                <th>Time</th>
-                <th>Hits</th>
-                <th>Bandwidth</th>
-                <th>Bandwidth Rate</th>
-            </tr>
-            </thead>
-        </table>
-
-        <div class="clearfix"></div>
+        <div><h4 class="easy-inline">Access History Detail</h4></div>
+        <div id="ht-reset">
+            <a class="reset" href="javascript:Failover.hosts_table_reset();" style="display: none;">Reset</a>
+            <span class="reset" style="display: none;"> | <strong>Filter:</strong> <span class="filter"></span></span>
+        </div>
+        <div class="clearfix" style="padding-top: 30px;"></div>
+        <p>By clicking on one of the column headers, the sorting field is chosen and ordering is toggled. The <strong>Host</strong>, <strong>Hits</strong> and <strong>Bandwidth</strong> columns provide complementary information in their rows' tooltips. By clicking on a host, the traffic is further filtered.</p>
+        <div class="col-md-10 col-md-offset-1">
+            <table class="table table-hover table-striped table-condensed dc-data-table" id="hosts-table">
+                <thead>
+                <tr class="header">
+                    <th class="header-inactive"><span class='header-text'>Host</span> <span class="glyphicon glyphicon-chevron-down"></span></th>
+                    <th class="header-inactive"><span class='header-text'>Is Squid?</span> <span class="glyphicon glyphicon-chevron-down"></span></th>
+                    <th class="header-active"><span class='header-text'>Time</span> <span class="glyphicon glyphicon-chevron-down"></span></th>
+                    <th class="header-inactive"><span class='header-text'>Hits</span> <span class="glyphicon glyphicon-chevron-down"></span></th>
+                    <th class="header-inactive"><span class='header-text'>Bandwidth</span> <span class="glyphicon glyphicon-chevron-down"></span></th>
+                </tr>
+                </thead>
+            </table>
+        </div>
     </div>
 
 </div> <!-- end container -->

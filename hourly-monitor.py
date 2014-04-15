@@ -23,9 +23,6 @@ def main():
     geolist_file = server_lists + "geolist.txt"
     exception_list_file = server_lists + "exceptionlist.txt"
 
-    print_column_order = ('Timestamp','Sites','Group','IsSquid','Host','Alias',
-                          'Hits','HitsRate','Bandwidth','BandwidthRate')
-
     config = json.load( open(config_file))
     json.dump(config, open(config_file, 'w'), indent=3)
 
@@ -34,7 +31,7 @@ def main():
 
     actions, WN_view, MO_view = fl.parse_exceptionlist( fl.get_url( exception_list_file))
     geo_0 = fl.parse_geolist( fl.get_url( geolist_file))
-    geo = fl.patch_geo_table(geo_0, MO_view, actions, geoip)
+    geo = fl.patch_geo_table(geo_0, MO_view, WN_view, actions, geoip)
     cms_tagger = fl.CMSTagger(geo, geoip)
 
     current_records = load_records(config['record_file'], now, config['history']['span'])
@@ -50,9 +47,10 @@ def main():
             failover_groups.append(failover.copy())
 
     if len(failover_groups):
-        failover_record = pd.concat(failover_groups, ignore_index=True)\
-                            .reindex(columns=print_column_order)
-        write_failover_record (failover_record, config['record_file'])
+        failover_record = pd.concat(failover_groups, ignore_index=True)
+        write_failover_record(failover_record, config['record_file'])
+
+        print "Sites to send alarm to:\n", mark_activity_for_mail(failover_record)
 
     return 0
 
@@ -62,7 +60,7 @@ def load_records (record_file, now, record_span):
     old_cutoff = now_secs - record_span*3600
 
     if os.path.exists(record_file):
-        records = pd.read_csv(record_file)
+        records = pd.read_csv(record_file, index_col=False)
         records = records[ records['Timestamp'] >= old_cutoff ]
     else:
         records = None
@@ -72,7 +70,7 @@ def load_records (record_file, now, record_span):
 def get_group_records (records, group_name):
 
     if isinstance(records, pd.DataFrame) and 'Group' in records:
-        return records[ records['Group'] == group_name ]
+        return records[ records['Group'] == group_name ].copy()
     else:
         return None
 
@@ -108,8 +106,8 @@ def analyze_failovers_to_group (config, groupname, now, past_records, geo, tagge
     else:
         offending = None
 
-    gen_report (offending, groupconf['name'], geo)
-    failovers = update_record (offending, past_records, now, geo)
+    failovers = update_record (offending, past_records, now)
+    gen_report (offending, groupconf['name'])
 
     return failovers
 
@@ -120,7 +118,7 @@ def load_last_data (last_stats_file):
         last_timestamp = datetime.utcfromtimestamp( int( fobj.next().strip()))
         fobj.close()
 
-        last_awdata = pd.read_csv(last_stats_file, skiprows=1)
+        last_awdata = pd.read_csv(last_stats_file, index_col=False, skiprows=1)
         last_awdata['Ip'] = last_awdata['Host'].apply(fl.get_host_ipv4_addr)
 
     else:
@@ -138,7 +136,7 @@ def save_last_data (last_stats_file, data, timestamp):
 
 def datetime_to_UTC_epoch (dt):
 
-    return calendar.timegm( dt.utctimetuple())
+    return int(calendar.timegm( dt.utctimetuple()))
 
 def compute_traffic_delta (now_stats_indexless, last_stats_indexless, now_timestamp, last_timestamp):
 
@@ -152,15 +150,20 @@ def compute_traffic_delta (now_stats_indexless, last_stats_indexless, now_timest
     # The deltas of newly recorded hosts are their very data values
     deltas.fillna( now_stats[cols], inplace=True )
     # Filter out hosts whose recent activity is null
-    deltas = deltas[ deltas['Hits'] > 0 ]
+    are_active = (deltas['Hits'] > 0) & (deltas['Bandwidth'] > 0)
+    active = deltas[are_active]
+
+    inactive = deltas[~are_active]
+    inactive['WasOld'] = inactive.index
+    inactive['WasOld'] = inactive['WasOld'].isin(last_stats.index)
 
     # Add computed columns to table, dropping the original columns since they
-    # are a long-running accumulation.
+    # are an accumulation.
     delta_t = datetime_to_UTC_epoch(now_timestamp) - datetime_to_UTC_epoch(last_timestamp)
-    rates = deltas.copy() / float(delta_t)
-    rates.rename(columns = lambda x: x + "Rate", inplace=True)
+    rates = active / float(delta_t)
+    rates = rates.rename(columns = lambda x: x + "Rate")
     table = now_stats.drop(cols, axis=1)\
-                     .join([deltas, rates], how='inner')
+                     .join([active, rates], how='inner')
     table.reset_index(inplace=True)
 
     return table
@@ -177,9 +180,9 @@ def excess_failover_check (awdata, site_rate_threshold):
 
     return offending.copy()
 
-def gen_report (offending, groupname, geo):
+def gen_report (offending, groupname):
 
-    print "Failover activity to %s:" % groupname
+    print "Failover activity to %s:" % groupname,
 
     if offending is None:
         print " None.\n"
@@ -193,33 +196,36 @@ def gen_report (offending, groupname, geo):
         pd.options.display.width = 130
         pd.options.display.max_rows = 100
 
-        print for_report.set_index(['Sites', 'IsSquid', 'Host']).sortlevel(0), "\n"
+        print '\n', for_report.set_index(['Sites', 'IsSquid', 'Host']).sortlevel(0), "\n"
 
     else:
         print " None.\n"
 
-def update_record (offending, past_records, now, geo):
+def update_record (offending, past_records, now):
 
-    now_secs = datetime_to_UTC_epoch(now)
-
-    if offending is None:
-        return
-
-    to_add = offending.copy()
-    to_add['Timestamp'] = now_secs
-    to_add['IsSquid'] = to_add['Ip'].isin(geo['Ip'])
+    to_concat = []
 
     if isinstance(past_records, pd.DataFrame):
-        update = pd.concat([past_records, to_add], ignore_index=True)
-    else:
-        update = to_add
+        to_concat.append(past_records)
 
-    update['Bandwidth'] = update['Bandwidth'].astype(int)
-    update['Hits'] = update['Hits'].astype(int)
+    if isinstance(offending, pd.DataFrame):
+        new_records = offending.copy()
+        new_records['Timestamp'] = datetime_to_UTC_epoch(now)
+        to_concat.append(new_records)
 
-    return update
+    updated = pd.concat(to_concat, ignore_index=True) if to_concat else None
 
-def write_failover_record (failover_record, file_path):
+    return updated
+
+def write_failover_record (record, file_path):
+
+    column_order = ["Timestamp", "Group", "Sites", "Host", "Ip", "Alias", "IsSquid",
+                    "Bandwidth", "BandwidthRate", "Hits", "HitsRate"]
+
+    failover_record = record.reindex(columns=column_order)
+    failover_record['Bandwidth'] = failover_record['Bandwidth'].astype(int)
+    failover_record['Hits'] = failover_record['Hits'].astype(int)
+    failover_record['Timestamp'] = failover_record['Timestamp'].astype(int)
 
     reduced_file_parts = file_path.split('.')
     reduced_file_parts.insert(len(reduced_file_parts)-1, 'reduced')
@@ -256,6 +262,20 @@ def reduce_to_rank (dataframe, columns, ranks=5, reduction_ops={}, tagged_fields
     reduced['Others'] = to_add
 
     return reduced.T.copy()
+
+def mark_activity_for_mail (records):
+
+    x = records[['Sites', 'Timestamp']].drop_duplicates()
+    # Wait is the time (in hours) elapsed between failover event records
+    x['Wait'] = x.groupby('Sites')['Timestamp'].diff().fillna(0)/3600.0
+    x.Wait = x.Wait.round().astype(int) - 1
+    x.Timestamp = x.Timestamp.apply(pd.to_datetime, unit='s')
+
+    # persistent failover is that which has no wait (i.e. happens continuously)
+    persistent = x[x.Wait == 0]
+    to_report = persistent.Sites.unique()
+
+    return to_report
 
 if __name__ == "__main__":
     sys.exit(main())

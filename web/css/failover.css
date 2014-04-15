@@ -1,22 +1,44 @@
-  .squid-yes {
-     width: 40px;
-     height: 20px;
-  }
+.squid-box {
+    width: 40px;
+    height: 20px;
+    text-align: center;
+    color: white;
+    line-height: 20px;
+}
+.Yes { background: #3A9410; }
+.No { background: #DE2810; }
 
-  .squid-yes rect {
-     fill-opacity : 1;
-     fill  : red;
-     width : 100%;
-     height : 100%;
-  }
+#group-chart svg { width: 380px; }
+#squid-chart svg { width: 300px; }
 
-  .squid-yes text {
-     fill : white;
-     text-anchor: middle;
-  }
+#time-chart .fadeout { fill-opacity: 0.05; }
+#time-chart .grid-line line {
+    opacity: 0.4;
+    stroke: #000000;
+}
 
-  #group-chart svg { width: 380px; }
-  #squid-chart svg { width: 300px; }
+.easy-inline {
+    margin-top: 0px;
+    margin-bottom: 0px;
+    float: left;
+    padding-right: 10px;
+}
 
-  #time-chart .fadeout { fill-opacity: 0; }
-  #time-range-chart g.y { display: none; }
+.header-active { background-color: #FFDD55; }
+.header-active:hover { background-color: #FFCC00; }
+.header-active>.glyphicon {
+    visibility: visible;
+    float: right;
+}
+.header-inactive { background-color: #FFFFFF; }
+.header-inactive:hover { background-color: #EEEEEE; }
+.header-inactive>.glyphicon {
+    visibility: hidden;
+    float: right;
+}
+.header-active, .header-inactive { cursor: pointer; }
+
+#hosts-table .dc-table-column._0:hover {
+    background-color: hsl(40,80%,80%);
+    cursor: pointer;
+}

@@ -9,6 +9,7 @@ import pygeoip
 
 from datetime import datetime
 from functools import partial
+from unidecode import unidecode
 
 def to_bytes (sz):
 
@@ -31,8 +32,9 @@ def load_awstats_data (machine, day=None):
         day = datetime.today().day
 
     aw_url = server + url.format(instance=machine, day=day)
-    dataframe = pd.read_html( aw_url, header = 0,
-                              attrs = {'class': 'aws_data'})[1]
+    dataframe = pd.read_html(aw_url, attrs={'class': 'aws_data'},
+                             match='Unique visitors', infer_types=False,
+                             header=0)[0]
 
     if isinstance(dataframe, pd.DataFrame):
 
@@ -66,6 +68,8 @@ def download_aggregated_awstats_data (machines, day=None):
     aggregated.reset_index(inplace=True)
 
     aggregated['Ip'] = aggregated['Host'].apply(get_host_ipv4_addr)
+    aggregated['Hits'] = aggregated['Hits'].astype(int)
+    aggregated['Bandwidth'] = aggregated['Bandwidth'].astype(int)
 
     return aggregated
 
@@ -76,14 +80,16 @@ def get_url (url):
 
     return data
 
-def parse_geolist (geolistdata):
+def parse_geolist (geolist_raw):
 
-    geo_str = unicode (geolistdata, errors='ignore').encode('utf-8')
-    lines = geo_str.replace('"','').split()
+    geo_str_unicode = unicode(geolist_raw, pygeoip.ENCODING)
+    geo_str_ascii = unidecode(geo_str_unicode)
+    geo_str = geo_str_ascii.replace('"','')
+    simply_spaced = ' '.join(geo_str.split())
 
-    step1 = ' '.join(lines).split('Directory')
+    step1 = simply_spaced.split('Directory')
     step2 = ( line.split() for line in step1 )
-    step3 = filter (lambda e: len(e) == 6, step2)
+    step3 = filter(lambda e: len(e) == 6, step2)
 
     squids = []
 
@@ -168,24 +174,25 @@ def parse_exceptionlist (exceptionlist_data):
 
     return actions, workernode_view, monitoring_view
 
-def patch_geo_table (geo, MO_view, actions, geoip):
+def patch_geo_table (geo, MO_view, WN_view, actions, geoip):
 
-    MO_eview = MO_view.copy()
-    MO_eview['Base'], MO_eview['Spec'] = zip(*MO_eview['Site'].map(cms_site_name_split))
-    MO_eview = MO_eview.merge(actions.reset_index(), how='left', on='Site')\
-                       .fillna('')\
-                       .drop('Site', axis='columns')\
-                       .rename(columns={'Base': 'Site'})
-    MO_eview = MO_eview[ MO_eview.Action != '-' ]
-    MO_eview['Institution'] = MO_eview['Host'].apply(geoip.org_by_name)
-    to_add = MO_eview[ ~(MO_eview.Host.isin(geo.Host) | MO_eview.Host.isin(geo.Alias)) ].copy()
-    to_add.drop(['Action', 'Spec'], axis='columns', inplace=True)
-    new_geo_entries = [ gen_geo_entries(spec['Host'], spec['Institution'], spec['Site'])
-                        for spec in to_add.to_dict('records') ]
-    geo_app = pd.DataFrame( sum(new_geo_entries, []) )
-    new_geo = pd.concat([geo, geo_app], ignore_index=True)
+    geo_new = geo[~geo.IsDNS].copy()
 
-    return new_geo
+    # Add hosts (along with sites) specified to be added as monitoring view
+    MO_to_add = MO_view[~(MO_view.Host.isin(geo_new.Alias) | MO_view.Host.isin(geo_new.Host))].copy()
+    MO_to_add['Institution'] = MO_to_add.Host.apply(geoip.org_by_name)
+    MO_to_add = pd.DataFrame(flatten(gen_geo_entries(r['Host'], r['Institution'], r['Site']) for r in MO_to_add.to_dict('records')))
+    geo_new = pd.concat([geo_new, MO_to_add], ignore_index=True)
+
+    # Remove sites with specified removal action from monitoring view
+    geo_new = geo_new[ ~geo_new.Site.isin(actions[actions == '-'].index) ]
+
+    # Remove worker nodes in sites with no action specified
+    for idx, elem in WN_view[ WN_view.Site.isin(geo_new.Site) ].iterrows():
+        sel = ((geo_new.Alias == elem.Host) | (geo_new.Host == elem.Host)) & (geo_new.Site == elem.Site)
+        geo_new = geo_new[~sel]
+
+    return geo_new
 
 def tag_hosts (dataframe, host_ip_field, squids_institute_sites_map, squids_ip_sites_map, geo, geoip):
 
@@ -246,6 +253,9 @@ def get_dns_addresses (hostname):
     info = socket.getaddrinfo( hostname, 0, socket.AF_INET)
     return set( e[4][0] for e in info )
 
+def flatten (iterator):
+    return sum(iterator, [])
+
 def parse_timestamp_column (series):
 
     epoch_ns = pd.to_datetime(series) - datetime(1970,1,1)
@@ -263,13 +273,16 @@ def get_squid_host_alias_map (geo_table):
 
 def safe_geo_fun (host_id, geo_fun):
 
+    isp_u = None
     try:
-        isp_uc = geo_fun(host_id).encode('utf-8', 'ignore')
-        # Spaces are removed in the geolist
-        isp = isp_uc.replace(' ', '')
-
+        isp_u = unicode(geo_fun(host_id))
     except (socket.gaierror, AttributeError):
-        isp = 'Unknown'
+        pass
+    if not isinstance(isp_u, basestring):
+        isp_u = u'Unknown'
+
+    isp_uc = unidecode(isp_u)     # Sensibly transliterate non-ASCII characters
+    isp = isp_uc.replace(' ', '')           # Spaces are removed in the geolist
 
     return isp
 
@@ -313,7 +326,7 @@ class CMSTagger(object):
 
         x = slice_cp['Site'].str.split('_', 2)
         slice_cp['BaseSite'] = x.str.get(1) + '_' + x.str.get(2)
-        slice_cp['Tier'] =  x.str.get(0)
+        slice_cp['Tier'] = x.str.get(0)
 
         z = slice_cp.groupby([other_field, 'BaseSite'])['Tier']
         w = z.agg( lambda df: ",".join(sorted(df.values)) ).reset_index(level='BaseSite')
@@ -348,4 +361,3 @@ if __name__ == "__main__":
     actions, WN_view, MO_view = parse_exceptionlist( get_url( exception_list_file))
 
     print load_awstats_data('cmsfrontier')
-

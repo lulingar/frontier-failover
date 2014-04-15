@@ -35,3 +35,39 @@ function size_natural (size)
 
     return size_str;
 }
+
+function flatten_array (arr)
+{
+    var flat = [];
+    flat = flat.concat.apply(flat, arr);
+    return flat;
+}
+
+/* 
+  Generates a set of CSS color specifications
+  based on the HSL model, by uniformly dividing
+  the hue wheel at constant saturation and luminosity.
+
+  Params:
+
+    num_colors  The amount of colors to generate
+    sat         The common saturation value [0-100]
+    lum         The common luminosity value [0-100]
+    [hue_start] The starting point in the Hue wheel [0-360)
+*/
+function hsl_set (num_colors, sat, lum, hue_start)
+{
+    var colors = [],
+        hue_step = 360/num_colors, 
+        h;
+
+    if (typeof(hue_start) === 'undefined') hue_start = 0;
+
+    for (var i = 0; i < num_colors; i++) {
+        h = (hue_start + i*hue_step) % 360;
+        colors.push('hsl(' +h+ ',' +sat+ '%,' +lum+ '%)')
+    }
+
+    if (num_colors == 1) return colors[0];
+    else return colors;
+}

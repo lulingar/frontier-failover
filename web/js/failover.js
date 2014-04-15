@@ -3,75 +3,83 @@
 
 var Failover = new function() {
 
-    var scope = this;
-    // JS weirdness: You have to append ".bind(scope)" at the end of every
-    //  member function, after its closing brace, in order
-    //  to make sure any instances of "this" within the function actually
-    //  reference the object, and not the Global scope (a.k.a. "Window")
+    var self = this;
+    // JS weirdness: By default, when not specified otherwise, functions
+    //  have the object "this" pointing to the Global scope (a.k.a. "Window")
+    //  So to reference to this object, use "self" instead.
 
-    this.time_chart = dc.seriesChart("#time-chart");
-    this.time_chart_range = dc.barChart("#time-range-chart");
-    this.group_chart = dc.pieChart("#group-chart");
-    this.squid_chart = dc.pieChart("#squid-chart");
-    this.hosts_table = dc.dataTable("#hosts-table");
-    this.data_file = "failover.csv";
-    this.date_format = d3.time.format("%b %d, %Y %I:%M %p");
-    this.sites_legend_item_size = 20;
-    this.groups_base_dim = 150;
-    this.groups_legend_width = 200;
-    this.groups_radius = this.groups_base_dim/2 - 15;
+    self.time_chart = dc.seriesChart("#time-chart");
+    self.group_chart = dc.pieChart("#group-chart");
+    self.squid_chart = dc.pieChart("#squid-chart");
+    self.hosts_table = dc.dataTable("#hosts-table");
+    self.data_file = "failover.csv";
+    self.date_format = d3.time.format("%b %d, %Y %I:%M %p");
+    self.sites_legend_item_size = 17;
+    self.time_chart_width = 1024;
+    self.time_chart_height = 450;
+    self.groups_base_dim = 150;
+    self.groups_legend_width = 200;
+    self.groups_radius = self.groups_base_dim/2 - 15;
 
-    this.setup = function(error, config, dataset) {
+    self.start = function() {
+        var q;
 
-        this.config = config;
-        this.period = config.history.period;
-        this.extent_span = 3.6e6 * config.history.span;
+        q = queue().defer(d3.json, "config.json")
+                   .defer(d3.csv, self.data_file);
+        q.await(self.setup);
+    };
 
-        this.periodObj = minuteBunch(this.period);
-        this.periodRange = this.periodObj.range;
-        this.addH = function(p, d) { return p + d.Hits; };
-        this.remH = function(p, d) { return p - d.Hits; };
-        this.ini = function() { return 0; };
+    self.setup = function(error, config, dataset) {
 
-        this.raw_data = this.process_data(dataset);
-        this.ndx = crossfilter(this.raw_data);
-        this.all = this.ndx.groupAll().reduce(this.addH, this.remH, this.ini);
-        this.site_D = this.ndx.dimension( function(d) { return d.Sites; })
+        self.config = config;
+        self.period = config.history.period;
+        self.extent_span = 3.6e6 * config.history.span;
 
-        this.time_D = this.ndx.dimension( function(d) { return d.Timestamp; });
-        this.group_D = this.ndx.dimension( function(d) {
-                                    return this.config.groups[d.Group].name; 
-                                }.bind(scope));
-        this.squid_D = this.ndx.dimension( function(d) { 
-                                    var host_type = { true: "Squid",
-                                                      false: "Worker Node" };
-                                    return host_type[d.IsSquid]; 
+        self.periodObj = minuteBunch(self.period);
+        self.periodRange = self.periodObj.range;
+        self.addH = function(p, d) { return p + d.Hits; };
+        self.remH = function(p, d) { return p - d.Hits; };
+        self.ini = function() { return 0; };
+
+        self.ndx = crossfilter( self.process_data(dataset));
+        self.all = self.ndx.groupAll().reduce(self.addH, self.remH, self.ini);
+        self.site_D = self.ndx.dimension( function(d) { return d.Sites; })
+
+        self.time_D = self.ndx.dimension( function(d) { return d.Timestamp; });
+        self.group_D = self.ndx.dimension( function(d) {
+                                    return self.config.groups[d.Group].name;
                                 });
-        this.hits_D = this.ndx.dimension( function(d) { return d.Hits; });
-        this.time_site_D = this.ndx.dimension( function(d) { return [d.Timestamp, d.Sites]; });
-        this.group_G = this.group_D.group().reduce(this.addH, this.remH, this.ini);
-        this.squid_G = this.squid_D.group().reduce(this.addH, this.remH, this.ini);
-        this.time_sites_G = this.time_site_D.group().reduce(this.addH, this.remH, this.ini);
-        this.time_G = this.time_D.group().reduce(this.addH, this.remH, this.ini);
-        this.hits_G = this.hits_D.group().reduce(this.addH, this.remH, this.ini);
-        this.site_list = this.site_D.group().all().map( function(d) { return d.key; });
-        this.num_sites = this.site_list.length;
-        this.site_name_lengths = this.site_list.map( function(s) { return s.length; });
-        this.max_length = crossfilter.quicksort(this.site_name_lengths, 0, this.site_name_lengths.length)
-                                .reverse()[0];
-        this.sites_legend_space_v = (1 + this.num_sites) * this.sites_legend_item_size;
-        this.sites_legend_space_h = 7*this.max_length;
+        self.squid_D = self.ndx.dimension( function(d) {
+                                    return d.IsSquid ? "Squid" : "Worker Node";
+                                });
+        self.hits_D = self.ndx.dimension( function(d) { return d.Hits; });
+        self.time_site_D = self.ndx.dimension( function(d) { return [d.Timestamp, d.Sites]; });
+        self.host_D = self.ndx.dimension( function(d) { return d.Host; });
+        self.group_G = self.group_D.group().reduce(self.addH, self.remH, self.ini);
+        self.squid_G = self.squid_D.group().reduce(self.addH, self.remH, self.ini);
+        self.time_sites_G = self.time_site_D.group().reduce(self.addH, self.remH, self.ini);
+        self.hits_G = self.hits_D.group().reduce(self.addH, self.remH, self.ini);
+        self.site_list = self.site_D.group().all().map( function(d) { return d.key; });
+        self.site_names_len = flatten_array( self.site_list.map( function(s) {
+                            return s.split('\n').map( function(s){ return s.length });
+                        }) );
+        self.site_longest_name = Math.max.apply(0, self.site_names_len);
+        self.num_lines = 1 + self.site_names_len.length;
+        self.sites_legend_space_v = self.num_lines * self.sites_legend_item_size;
+        self.sites_legend_columns = Math.ceil(self.sites_legend_space_v / (0.9*self.time_chart_height));
+        self.sites_legend_space_h = (7 * self.site_longest_name) * self.sites_legend_columns + 20;
 
-        this.update_time_extent(this.period, this.extent_span);
+        self.update_time_extent(self.period, self.extent_span);
 
         // The time series
-        var time_chart_width = 1024;
-        this.time_chart.width(time_chart_width)
-                  .height(415)
+        self.sites_color_scale = hsl_set(self.site_list.length, 70, 50);
+        self.time_chart.width(self.time_chart_width)
+                  .height(self.time_chart_height)
+                  .margins({top: 30, right: 30+self.sites_legend_space_h, bottom: 60, left: 70})
                   .chart( function(c) { return dc.barChart(c) } )
-                  .margins({top: 30, right: 30+this.sites_legend_space_h, bottom: 40, left: 60})
-                  .dimension(this.time_site_D)
-                  .group(this.time_sites_G)
+                  .ordinalColors(self.sites_color_scale)
+                  .dimension(self.time_site_D)
+                  .group(self.time_sites_G)
                   .keyAccessor(function(d) { return d.key[0]; })
                   .seriesAccessor(function(d) { return d.key[1]; })
                   .seriesSort(d3.descending)
@@ -80,194 +88,198 @@ var Failover = new function() {
                   .mouseZoomable(true)
                   .rangeChart(this.time_chart_range)
                   .elasticY(true)
-                  .x(d3.time.scale().domain(this.extent))
-                  .xUnits(this.periodRange)
+                  .x(d3.time.scale().domain(self.extent))
+                  .xUnits(self.periodRange)
                   .renderHorizontalGridLines(true)
                   .legend( dc.legend()
-                             .x( 1024-this.sites_legend_space_h ).y(10)
-                             .itemWidth(150).itemHeight(this.sites_legend_item_size)
-                             .gap(5) )
+                             .x( 1024-self.sites_legend_space_h ).y(10)
+                             .itemWidth(150).itemHeight(self.sites_legend_item_size)
+                             .gap(4) )
                   .brushOn(false)
                   .renderlet(function(chart) {
                       chart.selectAll(".dc-legend-item")
-                           .on("click", function(d) { 
-                                          this.site_D.filterExact(d.name);
-                                          chart.turnOnControls();
-                                          dc.redrawAll(); 
-                                       }.bind(scope) ); 
+                           .on("click", function(d) { self.site_filter(d.name); });
+                      chart.selectAll(".sub .bar")
+                           .on("click", function(d) { self.site_filter(d.layer); });
                    });
 
-        this.time_chart.xAxis().ticks(d3.time.hours, 2);
+        self.time_chart.xAxis().ticks(d3.time.hours, 2);
 
         // Add listeners to rotate labels and refresh data table
-        var rotate_fun = function(d) { 
-                return "rotate(-90) translate(-25, -12)"; 
+        var rotate_fun = function(d) {
+                return "rotate(-90) translate(-25, -12)";
             };
-        var axis_tick_rotate = function(chart) { 
+        var axis_tick_rotate = function(chart) {
                 chart.selectAll("svg g g.axis.x g.tick text")
                      .attr("transform", rotate_fun);
             }
-        this.time_chart.on("postRedraw", axis_tick_rotate);
-        this.time_chart.on("postRender", axis_tick_rotate);
-       
-        // the time range controller chart 
-        this.time_chart_range.width(time_chart_width)
-                  .height(80)
-                  .margins({top: 0, right: 30+this.sites_legend_space_h, bottom: 60, left: 70})
-                  .dimension(this.time_D)
-                  .group(this.time_G)
-                  .x(d3.time.scale().domain(this.extent))
-                  .xUnits(this.periodRange)
-                  .elasticY(true)
-                  .gap(1);
-        this.time_chart_range.xAxis().ticks(d3.time.hours, 2);
-        this.time_chart_range.on("postRedraw", axis_tick_rotate);
-        this.time_chart_range.on("postRender", axis_tick_rotate);
+        self.time_chart.on("postRedraw", axis_tick_rotate);
+        self.time_chart.on("postRender", axis_tick_rotate);
+
+        // Site filtering actions
+        self.site_filter = function (name) {
+                               var short_n = name.split('\n')[0]
+                                             + (name.contains('\n') ? ', ...' : '');
+                               self.site_D.filterExact(name);
+                               self.time_chart.turnOnControls();
+                               dc.redrawAll();
+                               // This must be run after redrawAll, else it does not render
+                               self.time_chart.select('.filter')
+                                              .text(short_n)
+                                              .property('title', name);
+        }
+
+        // Set color distribution for experience consistency across days
+        self.group_colors = {}
+        for (var group in self.config.groups) {
+            var name = self.config.groups[group].name,
+                value = self.config.groups[group].order;
+            self.group_colors[name] = value;
+        }
 
         // The group chart
-        this.group_chart.width(this.groups_base_dim)
-                .height(this.groups_base_dim)
-                .radius(this.groups_radius)
-                .innerRadius(0.3*this.groups_radius)
-                .dimension(this.group_D)
-                .group(this.group_G)
-                .ordinalColors(["#ff7f0e", "#17becf", "#2ca02c"])
-                .title(function(d) { return d.value + " Hits"; })
+        self.group_chart.width(self.groups_base_dim)
+                .height(self.groups_base_dim)
+                .radius(self.groups_radius)
+                .innerRadius(0.3*self.groups_radius)
+                .dimension(self.group_D)
+                .group(self.group_G)
+                .minAngleForLabel(0)
+                .colors(d3.scale.category10())
+                .colorAccessor(function(d){ return self.group_colors[d.key]; })
+                .title(function(d) { return d.key + ": " + d.value + " Hits"; })
                 .label(function (d) {
-                    if (this.group_chart.hasFilter() && !this.group_chart.hasFilter(d.key))
+                    if (self.group_chart.hasFilter() && !self.group_chart.hasFilter(d.key))
                             return "0%";
-                        return (100 * d.value / this.all.value()).toFixed(2) + "%";
-                    }.bind(scope))
-                .legend( dc.legend().x(this.groups_base_dim).y(50).gap(10) );
+                        return (100 * d.value / self.all.value()).toFixed(2) + "%";
+                    })
+                .legend( dc.legend().x(self.groups_base_dim).y(50).gap(10) );
 
         // The host (squid/not squid) chart
-        this.squid_chart.width(this.groups_base_dim)
-                .height(this.groups_base_dim)
-                .radius(this.groups_radius)
-                .innerRadius(0.3*this.groups_radius)
-                .dimension(this.squid_D)
-                .group(this.squid_G)
-                .title(function(d) { return d.value + " Hits"; })
+        self.squid_chart.width(self.groups_base_dim)
+                .height(self.groups_base_dim)
+                .radius(self.groups_radius)
+                .innerRadius(0.3*self.groups_radius)
+                .dimension(self.squid_D)
+                .group(self.squid_G)
+                .ordinalColors([hsl_set(1, 100, 40, 100), hsl_set(1, 100, 40, 10)]) 
+                .title(function(d) { return d.key + ": " + d.value + " Hits"; })
                 .label(function (d) {
-                    if (this.squid_chart.hasFilter() && !this.squid_chart.hasFilter(d.key))
+                    if (self.squid_chart.hasFilter() && !self.squid_chart.hasFilter(d.key))
                             return "0%";
-                        return (100 * d.value / this.all.value()).toFixed(2) + "%";
-                    }.bind(scope))
-                .legend( dc.legend().x(this.groups_base_dim).y(50).gap(10) )
-                .renderlet( function(chart) {
-                        this.draw_squids();
-                    }.bind(scope));
+                        return (100 * d.value / self.all.value()).toFixed(2) + "%";
+                    })
+                .legend( dc.legend().x(self.groups_base_dim).y(50).gap(10) )
 
         // Table widget for displaying failover details
-        this.hosts_table.dimension(this.site_D)
-                .group(function(d) { return d.Sites; })
+        self.sort_order = {false: d3.ascending,
+                           true: d3.descending};
+        self.current_sort_order = false;
+        self.table_field_map = { 'Host': 'Host', 'Is Squid?': 'IsSquid',
+                                 'Time': 'Timestamp', 'Hits': 'Hits',
+                                 'Bandwidth' : 'Bandwidth' };
+        self.hosts_table_filter_control = d3.select('#ht-reset'); 
+        self.hosts_table.dimension(self.site_D)
+                .group(function(d) { return d.Sites.replace(/\n/g, ' | '); })
                 .columns([
-                        function(d) { 
+                        function(d) {
                             var host = d.Host,
                                 alias = ( d.Alias === '' ? host : d.Alias );
-                            return '<span title="Host: ' + host + '">' + alias + '</span>'; 
+                            return '<span title="IP: ' + d.Ip + '">' + alias + '</span>';
                         },
-                        function(d) { return this.squid_place(d.IsSquid); }.bind(scope),
-                        function(d) { return this.date_format(d.Timestamp); }.bind(scope),
-                        function(d) { return d.Hits; },
-                        function(d) { return size_natural(d.Bandwidth); },
-                        function(d) { return size_natural(d.BandwidthRate) + "/s"; }
+                        function(d) {
+                            var spec = d.IsSquid ? "Yes" : "No";
+                            return '<div class="squid-box ' + spec + '">' + spec + '</div>';
+                        },
+                        function(d) { return self.date_format(d.Timestamp); },
+                        function(d) { return '<span title="~ ' + d.HitsRate.toFixed(2) + ' queries/sec">' + d.Hits + '</span>'; },
+                        function(d) { return '<span title="~ ' + size_natural(d.BandwidthRate) + '/sec">' + size_natural(d.Bandwidth) + '</span>'; }
                         ])
-                .sortBy(function(d) { return [d.Timestamp, d.Hits]; })
+                .sortBy(dc.pluck('Timestamp'))
                 .order(d3.descending)
                 .size(Infinity)
-                .on("filtered", function(chart, filter) {
-                        this.draw_squids();
-                        }.bind(scope))
                 .renderlet(function(table){
                         table.selectAll(".dc-table-group").classed("info", true);
+                 })
+                .renderlet(function(table){
+                        table.selectAll(".dc-table-column._0")
+                             .on('click', function(){
+                                 var host = d3.select(this).select('span').text();
+                                 self.host_D.filterExact(host);
+                                 self.hosts_table_filter_control.selectAll('.reset')
+                                                                .style('display', null);
+                                 self.hosts_table_filter_control.selectAll('.filter')
+                                                                .style('display', null);
+                                 dc.redrawAll();
+                                 // This must be run after redrawAll, else it does not render
+                                 self.hosts_table_filter_control.selectAll('.filter')
+                                                                .text('Host ' + host);
+                              })
+                 });
+
+        // Sorting functionality of fields
+        self.hosts_table_headers = self.hosts_table.selectAll('thead th');
+        self.hosts_table_headers.on("click", function(d){
+            var header = d3.select(this),
+                selected = header.select('.header-text').text(),
+                field = self.table_field_map[selected],
+                glyph = d3.select(this).select('.glyphicon'),
+                all = self.hosts_table_headers.select('.glyphicon');
+
+            self.hosts_table_headers.classed('header-inactive', function() {
+                    var current = d3.select(this).select('.header-text').text();
+                    return !(current == selected);
                 });
+            self.hosts_table_headers.classed('header-active', function() {
+                    var current = d3.select(this).select('.header-text').text();
+                    return (current == selected);
+                });
+
+            self.current_sort_order = !self.current_sort_order;
+            glyph.classed({'glyphicon-chevron-down': self.current_sort_order,
+                           'glyphicon-chevron-up': !self.current_sort_order});
+
+            self.hosts_table.order(self.sort_order[self.current_sort_order]);
+            self.hosts_table.sortBy(dc.pluck(field));
+            dc.redrawAll();
+        });
 
         // Draw all objects
         dc.renderAll();
-    }.bind(this);
+    };
 
-    this.start = function() {
-        var q, proxy = this.setup.bind(this);
-
-        q = queue().defer(d3.json, "config.json")
-                   .defer(d3.csv, this.data_file);
-        q.await(proxy);
-    }.bind(this);
-
-    this.process_data = function(dataset) {
+    self.process_data = function(dataset) {
         var dataset = dataset;
 
         dataset.forEach( function(d) {
             // The timestamp points to the end of a period. 
             //  this must be accounted for for plotting.
             d.Timestamp = new Date((+d.Timestamp - 3600) * 1000);
+            d.Timestamp.setMinutes(0);
+            d.Timestamp.setSeconds(0);
 
             d.Hits = +d.Hits;
             d.HitsRate = +d.HitsRate;
             d.Bandwidth = +d.Bandwidth;
             d.BandwidthRate = +d.BandwidthRate;
             d.IsSquid = (d.IsSquid == "True");
+            d.Sites = d.Sites.replace(/; /g, '\n');
         });
 
         return dataset;
-    }.bind(this);
+    };
 
-    this.squid_place = function(is_squid) {
-        var spec = {true: "yes", false: "no"};
-        return '<div class="squid-' + spec[is_squid] + '"></div>';
-    }.bind(this);
-
-    this.draw_squids = function() {
-
-        var spec = {  true: { selector: ".squid-yes",
-                            text: "Yes",
-                            color: "#3A9410" },
-                    false: { selector: ".squid-no",
-                            text: "No",
-                            color: "#DE2810" } },
-            width = 40, 
-            height = 20;
-
-        function draw_type(is_squid) {
-            var d3image = d3.selectAll(spec[is_squid].selector),
-                svgcanvas = d3image.append("svg:svg")
-                                .attr("width", width)
-                                .attr("height", height);
-
-            svgcanvas.append("svg:rect")
-                    .attr("x",0)
-                    .attr("y",0)
-                    .attr("width", width)
-                    .attr("height", height)
-                    .style("fill", spec[is_squid].color),
-            svgcanvas.append("svg:text")
-                    .text(spec[is_squid].text)    
-                    .attr("x", width/2)
-                    .attr("y", height/2)
-                    .attr("text-anchor", "middle")
-                    .attr("dominant-baseline", "central")
-                    .style("fill", "white");
-        }
-
-        draw_type(true);
-        draw_type(false);
-    }.bind(this);
-
-    this.reload = function() {
-        d3.csv( this.data_file, 
+    self.reload = function() {
+        d3.csv( self.data_file,
                 function (error, dataset) {
-                    this.raw_data = this.process_data(dataset);
+                    self.ndx.remove();
+                    self.ndx.add( self.process_data(dataset));
+                    self.update_time_extent(self.period, self.extent_span);
+                    dc.redrawAll();
+                } );
+    };
 
-                    this.ndx.remove();
-                    this.ndx.add( this.raw_data);
-
-                    dc.renderAll();
-                    this.update_time_extent(this.period, this.extent_span);
-                }.bind(scope) );
-    }.bind(this);
-
-    this.update_time_extent = function(period, extent_span) {
+    self.update_time_extent = function(period, extent_span) {
 
         var periodObj = minuteBunch(period),
             periodRange = periodObj.range,
@@ -282,20 +294,29 @@ var Failover = new function() {
         // Show the currently plotted time span
         d3.select("#date-start")
           .attr("datetime", extent[0])
-          .text(this.date_format(extent[0]));
+          .text(self.date_format(extent[0]));
         d3.select("#date-end")
           .attr("datetime", extent[1])
-          .text(this.date_format(extent[1]));
+          .text(self.date_format(extent[1]));
 
-        this.extent = extent_pad;
+        self.extent = extent_pad;
+        self.time_chart.x(d3.time.scale().domain(self.extent));
+    };
 
-    }.bind(this);
+    self.time_chart_reset = function() {
+        self.site_D.filterAll();
+        self.time_chart.turnOffControls();
+        dc.redrawAll();
+    };
 
-    this.time_chart_reset = function() {
-        this.site_D.filterAll();
-        this.time_chart.turnOffControls();
-        dc.redrawAll(); 
-    }.bind(this);
+    self.hosts_table_reset = function() {
+        self.host_D.filterAll();
+        self.hosts_table_filter_control.selectAll('.reset')
+                                       .style('display', 'none');
+        self.hosts_table_filter_control.selectAll('.filter')
+                                       .style('display', 'none');
+        dc.redrawAll();
+    };
 }
 
 Failover.start();

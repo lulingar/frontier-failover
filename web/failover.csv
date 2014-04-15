@@ -1,40 +1,40 @@
-Timestamp,Sites,Group,IsSquid,Host,Alias,Hits,HitsRate,Bandwidth,BandwidthRate,Last visit
-1391865218,T3_DE_Karlsruhe,CMS CERN Frontier Launchpads,False,nat.scc.kit.edu,,53357,14.87,6656297534,1854638.49,1391868480
-1391886741,T3_DE_Karlsruhe,CMS CERN Frontier Launchpads,False,nat.scc.kit.edu,,17086,4.74,8686571356,2409589.84,1391890020
-1391919146,KabelBaden-WuerttemburgGmbH&Co.KG,CMS CERN Frontier Launchpads,False,hsi-kbw-091-089-188-118.hsi2.kabel-badenwuerttemberg.de,,25722,7.14,811283250,225293.88,1391921640
-1391922734,KabelBaden-WuerttemburgGmbH&Co.KG,CMS CERN Frontier Launchpads,False,hsi-kbw-091-089-188-118.hsi2.kabel-badenwuerttemberg.de,,29832,8.31,1035133257,288498.68,1391925840
-1391929935,KabelBaden-WuerttemburgGmbH&Co.KG,CMS CERN Frontier Launchpads,False,hsi-kbw-091-089-188-118.hsi2.kabel-badenwuerttemberg.de,,20387,5.68,804373135,224184.26,1391933100
-1391933543,KabelBaden-WuerttemburgGmbH&Co.KG,CMS CERN Frontier Launchpads,False,hsi-kbw-091-089-188-118.hsi2.kabel-badenwuerttemberg.de,,26103,7.23,903274824,250353.33,1391935860
-1391937137,KabelBaden-WuerttemburgGmbH&Co.KG,CMS CERN Frontier Launchpads,False,hsi-kbw-091-089-188-118.hsi2.kabel-badenwuerttemberg.de,,29832,8.30,1041529569,289796.76,1391940180
-1391940743,KabelBaden-WuerttemburgGmbH&Co.KG,CMS CERN Frontier Launchpads,False,hsi-kbw-091-089-188-118.hsi2.kabel-badenwuerttemberg.de,,22374,6.20,783831531,217368.70,1391943240
-1391944349,KabelBaden-WuerttemburgGmbH&Co.KG,CMS CERN Frontier Launchpads,False,hsi-kbw-091-089-188-118.hsi2.kabel-badenwuerttemberg.de,,29832,8.27,1020054734,282877.08,1391947680
-1391947935,KabelBaden-WuerttemburgGmbH&Co.KG,CMS CERN Frontier Launchpads,False,hsi-kbw-091-089-188-118.hsi2.kabel-badenwuerttemberg.de,,26103,7.28,912680550,254512.14,1391951100
-1391951540,KabelBaden-WuerttemburgGmbH&Co.KG,CMS CERN Frontier Launchpads,False,hsi-kbw-091-089-188-118.hsi2.kabel-badenwuerttemberg.de,,24002,6.66,665719931,184665.72,1391954880
-1391955144,KabelBaden-WuerttemburgGmbH&Co.KG,CMS CERN Frontier Launchpads,False,hsi-kbw-091-089-188-118.hsi2.kabel-badenwuerttemberg.de,,34087,9.46,1267015352,351558.09,1391958480
-1391958740,KabelBaden-WuerttemburgGmbH&Co.KG,CMS CERN Frontier Launchpads,False,hsi-kbw-091-089-188-118.hsi2.kabel-badenwuerttemberg.de,,30995,8.62,687194767,191099.77,1391962080
-1392019938,"T2_US_Wisconsin, T3_US_Wisconsin",CMS CERN Frontier Launchpads,True,cache01.hep.wisc.edu,,0,0.00,0,0.00,1391993580
-1392019938,"T2_US_Wisconsin, T3_US_Wisconsin",CMS CERN Frontier Launchpads,True,cache02.hep.wisc.edu,,0,0.00,0,0.00,1392004440
-1392019938,"T2_US_Wisconsin, T3_US_Wisconsin",CMS CERN Frontier Launchpads,True,capiscum.hep.wisc.edu,,1983,0.55,19841087,5520.61,1392022500
-1392019938,"T2_US_Wisconsin, T3_US_Wisconsin",CMS CERN Frontier Launchpads,True,cayenne.hep.wisc.edu,,1461,0.41,13449759,3742.28,1392022560
-1392019938,"T2_US_Wisconsin, T3_US_Wisconsin",CMS CERN Frontier Launchpads,False,e066.chtc.wisc.edu,,0,0.00,0,0.00,1391998380
-1392019938,"T2_US_Wisconsin, T3_US_Wisconsin",CMS CERN Frontier Launchpads,True,frontier04.hep.wisc.edu,,1674,0.47,20258488,5636.75,1392021900
-1392019938,"T2_US_Wisconsin, T3_US_Wisconsin",CMS CERN Frontier Launchpads,False,g18n23.hep.wisc.edu,,140,0.04,5622620,1564.45,1392019920
-1392019938,"T2_US_Wisconsin, T3_US_Wisconsin",CMS CERN Frontier Launchpads,False,g26n05.hep.wisc.edu,,210,0.06,236175,65.71,1392019980
-1392019938,"T2_US_Wisconsin, T3_US_Wisconsin",CMS CERN Frontier Launchpads,False,g26n08.hep.wisc.edu,,202,0.06,260383,72.45,1392020160
-1392019938,"T2_US_Wisconsin, T3_US_Wisconsin",CMS CERN Frontier Launchpads,False,g26n17.hep.wisc.edu,,978,0.27,8724152,2427.42,1392020220
-1392019938,"T2_US_Wisconsin, T3_US_Wisconsin",CMS CERN Frontier Launchpads,False,g26n21.hep.wisc.edu,,1924,0.54,8430551,2345.73,1392020280
-1392019938,"T2_US_Wisconsin, T3_US_Wisconsin",CMS CERN Frontier Launchpads,False,g26n23.hep.wisc.edu,,110,0.03,136284,37.92,1392019920
-1392019938,"T2_US_Wisconsin, T3_US_Wisconsin",CMS CERN Frontier Launchpads,False,g27n04.hep.wisc.edu,,1818,0.51,3911189,1088.26,1392020160
-1392019938,"T2_US_Wisconsin, T3_US_Wisconsin",CMS CERN Frontier Launchpads,False,g27n06.hep.wisc.edu,,1827,0.51,3921675,1091.17,1392020220
-1392019938,"T2_US_Wisconsin, T3_US_Wisconsin",CMS CERN Frontier Launchpads,False,g27n18.hep.wisc.edu,,1087,0.30,3061156,851.74,1392020100
-1392019938,"T2_US_Wisconsin, T3_US_Wisconsin",CMS CERN Frontier Launchpads,False,g27n20.hep.wisc.edu,,12,0.00,12093,3.36,1392019920
-1392019938,"T2_US_Wisconsin, T3_US_Wisconsin",CMS CERN Frontier Launchpads,False,g27n25.hep.wisc.edu,,1138,0.32,2017628,561.39,1392020100
-1392019938,"T2_US_Wisconsin, T3_US_Wisconsin",CMS CERN Frontier Launchpads,False,g27n28.hep.wisc.edu,,1412,0.39,2635264,733.24,1392020160
-1392019938,"T2_US_Wisconsin, T3_US_Wisconsin",CMS CERN Frontier Launchpads,False,g27n29.hep.wisc.edu,,1004,0.28,1664532,463.14,1392020100
-1392019938,"T2_US_Wisconsin, T3_US_Wisconsin",CMS CERN Frontier Launchpads,False,glow-c070.icecube.wisc.edu,,71,0.02,6742344,1876.00,1392020100
-1392117148,T2_FI_HIP,CMS CERN Frontier Launchpads,True,frontier-vm.hip.helsinki.fi,,1808,0.50,0,0.00,1392120480
-1392117148,T2_FI_HIP,CMS CERN Frontier Launchpads,False,pcfc4.hip.helsinki.fi,,14562,4.04,592508355,164220.72,1392120000
-1392120742,T2_FI_HIP,CMS CERN Frontier Launchpads,True,frontier-vm.hip.helsinki.fi,,23,0.01,0,0.00,1392123840
-1392120742,T2_FI_HIP,CMS CERN Frontier Launchpads,False,pcfc4.hip.helsinki.fi,,18726,5.21,788015350,219258.58,1392123960
-1392124345,T2_FI_HIP,CMS CERN Frontier Launchpads,True,frontier-vm.hip.helsinki.fi,,25,0.01,0,0.00,1392127500
-1392124345,T2_FI_HIP,CMS CERN Frontier Launchpads,False,pcfc4.hip.helsinki.fi,,10846,3.01,402328125,111664.76,1392127740
+Timestamp,Sites,Group,IsSquid,Host,Alias,Hits,HitsRate,Bandwidth,BandwidthRate,Last visit,Ip
+1391865218,T3_DE_Karlsruhe,CMS CERN Frontier Launchpads,False,nat.scc.kit.edu,,53357,14.87,6656297534,1854638.49,1391868480,129.13.72.198
+1391886741,T3_DE_Karlsruhe,CMS CERN Frontier Launchpads,False,nat.scc.kit.edu,,17086,4.74,8686571356,2409589.84,1391890020,129.13.72.198
+1391919146,KabelBaden-WuerttemburgGmbH&Co.KG,CMS CERN Frontier Launchpads,False,hsi-kbw-091-089-188-118.hsi2.kabel-badenwuerttemberg.de,,25722,7.14,811283250,225293.88,1391921640,91.89.188.118
+1391922734,KabelBaden-WuerttemburgGmbH&Co.KG,CMS CERN Frontier Launchpads,False,hsi-kbw-091-089-188-118.hsi2.kabel-badenwuerttemberg.de,,29832,8.31,1035133257,288498.68,1391925840,91.89.188.118
+1391929935,KabelBaden-WuerttemburgGmbH&Co.KG,CMS CERN Frontier Launchpads,False,hsi-kbw-091-089-188-118.hsi2.kabel-badenwuerttemberg.de,,20387,5.68,804373135,224184.26,1391933100,91.89.188.118
+1391933543,KabelBaden-WuerttemburgGmbH&Co.KG,CMS CERN Frontier Launchpads,False,hsi-kbw-091-089-188-118.hsi2.kabel-badenwuerttemberg.de,,26103,7.23,903274824,250353.33,1391935860,91.89.188.118
+1391937137,KabelBaden-WuerttemburgGmbH&Co.KG,CMS CERN Frontier Launchpads,False,hsi-kbw-091-089-188-118.hsi2.kabel-badenwuerttemberg.de,,29832,8.30,1041529569,289796.76,1391940180,91.89.188.118
+1391940743,KabelBaden-WuerttemburgGmbH&Co.KG,CMS CERN Frontier Launchpads,False,hsi-kbw-091-089-188-118.hsi2.kabel-badenwuerttemberg.de,,22374,6.20,783831531,217368.70,1391943240,91.89.188.118
+1391944349,KabelBaden-WuerttemburgGmbH&Co.KG,CMS CERN Frontier Launchpads,False,hsi-kbw-091-089-188-118.hsi2.kabel-badenwuerttemberg.de,,29832,8.27,1020054734,282877.08,1391947680,91.89.188.118
+1391947935,KabelBaden-WuerttemburgGmbH&Co.KG,CMS CERN Frontier Launchpads,False,hsi-kbw-091-089-188-118.hsi2.kabel-badenwuerttemberg.de,,26103,7.28,912680550,254512.14,1391951100,91.89.188.118
+1391951540,KabelBaden-WuerttemburgGmbH&Co.KG,CMS CERN Frontier Launchpads,False,hsi-kbw-091-089-188-118.hsi2.kabel-badenwuerttemberg.de,,24002,6.66,665719931,184665.72,1391954880,91.89.188.118
+1391955144,KabelBaden-WuerttemburgGmbH&Co.KG,CMS CERN Frontier Launchpads,False,hsi-kbw-091-089-188-118.hsi2.kabel-badenwuerttemberg.de,,34087,9.46,1267015352,351558.09,1391958480,91.89.188.118
+1391958740,KabelBaden-WuerttemburgGmbH&Co.KG,CMS CERN Frontier Launchpads,False,hsi-kbw-091-089-188-118.hsi2.kabel-badenwuerttemberg.de,,30995,8.62,687194767,191099.77,1391962080,91.89.188.118
+1392019938,"T2_US_Wisconsin, T3_US_Wisconsin",CMS CERN Frontier Launchpads,True,cache01.hep.wisc.edu,,0,0.00,0,0.00,1391993580,144.92.180.99
+1392019938,"T2_US_Wisconsin, T3_US_Wisconsin",CMS CERN Frontier Launchpads,True,cache02.hep.wisc.edu,,0,0.00,0,0.00,1392004440,144.92.180.100
+1392019938,"T2_US_Wisconsin, T3_US_Wisconsin",CMS CERN Frontier Launchpads,True,capiscum.hep.wisc.edu,,1983,0.55,19841087,5520.61,1392022500,144.92.180.249
+1392019938,"T2_US_Wisconsin, T3_US_Wisconsin",CMS CERN Frontier Launchpads,True,cayenne.hep.wisc.edu,,1461,0.41,13449759,3742.28,1392022560,144.92.180.13
+1392019938,"T2_US_Wisconsin, T3_US_Wisconsin",CMS CERN Frontier Launchpads,False,e066.chtc.wisc.edu,,0,0.00,0,0.00,1391998380,128.104.100.232
+1392019938,"T2_US_Wisconsin, T3_US_Wisconsin",CMS CERN Frontier Launchpads,True,frontier04.hep.wisc.edu,,1674,0.47,20258488,5636.75,1392021900,144.92.180.209
+1392019938,"T2_US_Wisconsin, T3_US_Wisconsin",CMS CERN Frontier Launchpads,False,g18n23.hep.wisc.edu,,140,0.04,5622620,1564.45,1392019920,144.92.181.222
+1392019938,"T2_US_Wisconsin, T3_US_Wisconsin",CMS CERN Frontier Launchpads,False,g26n05.hep.wisc.edu,,210,0.06,236175,65.71,1392019980,144.92.180.107
+1392019938,"T2_US_Wisconsin, T3_US_Wisconsin",CMS CERN Frontier Launchpads,False,g26n08.hep.wisc.edu,,202,0.06,260383,72.45,1392020160,144.92.180.110
+1392019938,"T2_US_Wisconsin, T3_US_Wisconsin",CMS CERN Frontier Launchpads,False,g26n17.hep.wisc.edu,,978,0.27,8724152,2427.42,1392020220,144.92.180.119
+1392019938,"T2_US_Wisconsin, T3_US_Wisconsin",CMS CERN Frontier Launchpads,False,g26n21.hep.wisc.edu,,1924,0.54,8430551,2345.73,1392020280,144.92.180.123
+1392019938,"T2_US_Wisconsin, T3_US_Wisconsin",CMS CERN Frontier Launchpads,False,g26n23.hep.wisc.edu,,110,0.03,136284,37.92,1392019920,144.92.180.125
+1392019938,"T2_US_Wisconsin, T3_US_Wisconsin",CMS CERN Frontier Launchpads,False,g27n04.hep.wisc.edu,,1818,0.51,3911189,1088.26,1392020160,144.92.180.149
+1392019938,"T2_US_Wisconsin, T3_US_Wisconsin",CMS CERN Frontier Launchpads,False,g27n06.hep.wisc.edu,,1827,0.51,3921675,1091.17,1392020220,144.92.180.151
+1392019938,"T2_US_Wisconsin, T3_US_Wisconsin",CMS CERN Frontier Launchpads,False,g27n18.hep.wisc.edu,,1087,0.30,3061156,851.74,1392020100,144.92.180.163
+1392019938,"T2_US_Wisconsin, T3_US_Wisconsin",CMS CERN Frontier Launchpads,False,g27n20.hep.wisc.edu,,12,0.00,12093,3.36,1392019920,144.92.180.165
+1392019938,"T2_US_Wisconsin, T3_US_Wisconsin",CMS CERN Frontier Launchpads,False,g27n25.hep.wisc.edu,,1138,0.32,2017628,561.39,1392020100,144.92.180.170
+1392019938,"T2_US_Wisconsin, T3_US_Wisconsin",CMS CERN Frontier Launchpads,False,g27n28.hep.wisc.edu,,1412,0.39,2635264,733.24,1392020160,144.92.180.173
+1392019938,"T2_US_Wisconsin, T3_US_Wisconsin",CMS CERN Frontier Launchpads,False,g27n29.hep.wisc.edu,,1004,0.28,1664532,463.14,1392020100,144.92.180.174
+1392019938,"T2_US_Wisconsin, T3_US_Wisconsin",CMS CERN Frontier Launchpads,False,glow-c070.icecube.wisc.edu,,71,0.02,6742344,1876.00,1392020100,128.104.32.170
+1392117148,T2_FI_HIP,CMS CERN Frontier Launchpads,True,frontier-vm.hip.helsinki.fi,,1808,0.50,0,0.00,1392120480,128.214.177.178
+1392117148,T2_FI_HIP,CMS CERN Frontier Launchpads,False,pcfc4.hip.helsinki.fi,,14562,4.04,592508355,164220.72,1392120000,128.214.56.219
+1392120742,T2_FI_HIP,CMS CERN Frontier Launchpads,True,frontier-vm.hip.helsinki.fi,,23,0.01,0,0.00,1392123840,128.214.177.178
+1392120742,T2_FI_HIP,CMS CERN Frontier Launchpads,False,pcfc4.hip.helsinki.fi,,18726,5.21,788015350,219258.58,1392123960,128.214.56.219
+1392124345,T2_FI_HIP,CMS CERN Frontier Launchpads,True,frontier-vm.hip.helsinki.fi,,25,0.01,0,0.00,1392127500,128.214.177.178
+1392124345,T2_FI_HIP,CMS CERN Frontier Launchpads,False,pcfc4.hip.helsinki.fi,,10846,3.01,402328125,111664.76,1392127740,128.214.56.219
