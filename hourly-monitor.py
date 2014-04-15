@@ -208,9 +208,7 @@ def update_record (offending, past_records, now):
     if isinstance(past_records, pd.DataFrame):
         to_concat.append(past_records)
 
-    if offending is None:
-        new_records = None
-    else:
+    if isinstance(offending, pd.DataFrame):
         new_records = offending.copy()
         new_records['Timestamp'] = datetime_to_UTC_epoch(now)
         to_concat.append(new_records)
