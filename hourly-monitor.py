@@ -70,7 +70,7 @@ def load_records (record_file, now, record_span):
 def get_group_records (records, group_name):
 
     if isinstance(records, pd.DataFrame) and 'Group' in records:
-        return records[ records['Group'] == group_name ]
+        return records[ records['Group'] == group_name ].copy()
     else:
         return None
 
@@ -156,8 +156,6 @@ def compute_traffic_delta (now_stats_indexless, last_stats_indexless, now_timest
     inactive = deltas[~are_active]
     inactive['WasOld'] = inactive.index
     inactive['WasOld'] = inactive['WasOld'].isin(last_stats.index)
-    print "New entries marked as inactive:"
-    print inactive
 
     # Add computed columns to table, dropping the original columns since they
     # are an accumulation.
@@ -205,14 +203,16 @@ def gen_report (offending, groupname):
 
 def update_record (offending, past_records, now):
 
-    if offending is None: return None
-
     now_secs = datetime_to_UTC_epoch(now)
 
-    to_add = offending.copy()
-    to_add['Timestamp'] = now_secs
+    if offending is None:
+        to_add = None
+    else:
+        to_add = offending.copy()
+        to_add['Timestamp'] = now_secs
 
-    if isinstance(past_records, pd.DataFrame):
+    if isinstance(past_records, pd.DataFrame) and \
+       isinstance(to_add, pd.DataFrame):
         update = pd.concat([past_records, to_add], ignore_index=True)
     else:
         update = to_add
