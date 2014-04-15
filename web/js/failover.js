@@ -73,8 +73,8 @@ var Failover = new function() {
         self.site_longest_name = Math.max.apply(0, self.site_names_len);
         self.num_lines = 1 + self.site_names_len.length;
         self.sites_legend_space_v = self.num_lines * self.sites_legend_item_size;
-        self.sites_legend_columns = Math.ceil(self.sites_legend_space_v / self.time_chart_height);
-        self.sites_legend_space_h = (7 * self.site_longest_name) * self.sites_legend_columns;
+        self.sites_legend_columns = Math.ceil(self.sites_legend_space_v / (0.9*self.time_chart_height));
+        self.sites_legend_space_h = (7 * self.site_longest_name) * self.sites_legend_columns + 20;
 
         self.update_time_extent(self.period, self.extent_span);
 
@@ -134,6 +134,14 @@ var Failover = new function() {
                                               .property('title', name);
         }
 
+        // Set color distribution for experience consistency across days
+        self.group_colors = {}
+        for (var group in self.config.groups) {
+            var name = self.config.groups[group].name,
+                value = self.config.groups[group].order;
+            self.group_colors[name] = value;
+        }
+
         // The group chart
         self.group_chart.width(self.groups_base_dim)
                 .height(self.groups_base_dim)
@@ -142,7 +150,8 @@ var Failover = new function() {
                 .dimension(self.group_D)
                 .group(self.group_G)
                 .minAngleForLabel(0)
-                .ordinalColors(["#ff7f0e", "#17becf", "#2ca02c"])
+                .colors(d3.scale.category10())
+                .colorAccessor(function(d){ return self.group_colors[d.key]; })
                 .title(function(d) { return d.key + ": " + d.value + " Hits"; })
                 .label(function (d) {
                     if (self.group_chart.hasFilter() && !self.group_chart.hasFilter(d.key))
@@ -158,6 +167,7 @@ var Failover = new function() {
                 .innerRadius(0.3*self.groups_radius)
                 .dimension(self.squid_D)
                 .group(self.squid_G)
+                .ordinalColors([hsl_set(1, 100, 40, 100), hsl_set(1, 100, 40, 10)])
                 .title(function(d) { return d.key + ": " + d.value + " Hits"; })
                 .label(function (d) {
                     if (self.squid_chart.hasFilter() && !self.squid_chart.hasFilter(d.key))
@@ -194,7 +204,7 @@ var Failover = new function() {
                 .size(Infinity)
                 .renderlet(function(table){
                         table.selectAll(".dc-table-group").classed("info", true);
-                });
+                 });
 
         // Sorting functionality of fields
         self.hosts_table_headers = self.hosts_table.selectAll('thead th');
@@ -279,7 +289,7 @@ var Failover = new function() {
           .text(self.date_format(extent[1]));
 
         self.extent = extent_pad;
-
+        self.time_chart.x(d3.time.scale().domain(self.extent));
     };
 
     self.time_chart_reset = function() {
