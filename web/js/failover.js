@@ -20,14 +20,6 @@ var Failover = new function() {
     self.groups_base_dim = 150;
     self.groups_legend_width = 200;
     self.groups_radius = self.groups_base_dim/2 - 15;
-    self.sites_color_scale = ['#e41a1c', '#b93343', '#884f6f', '#576c9b',
-                              '#3983ad', '#3f918e', '#459d73', '#4bab53',
-                              '#5c9c5b', '#718175', '#86658e', '#9c509c',
-                              '#b65c73', '#d36a45', '#f07817', '#ff9107',
-                              '#ffb516', '#ffd924', '#fff931', '#ead730',
-                              '#d1a72d', '#b7772a', '#ad5a35', '#c46660',
-                              '#d87186', '#ef7db0', '#e685b8', '#cb8cad',
-                              '#b193a3', '#999999'];
 
     self.start = function() {
         var q;
@@ -62,6 +54,7 @@ var Failover = new function() {
                                 });
         self.hits_D = self.ndx.dimension( function(d) { return d.Hits; });
         self.time_site_D = self.ndx.dimension( function(d) { return [d.Timestamp, d.Sites]; });
+        self.host_D = self.ndx.dimension( function(d) { return d.Host; });
         self.group_G = self.group_D.group().reduce(self.addH, self.remH, self.ini);
         self.squid_G = self.squid_D.group().reduce(self.addH, self.remH, self.ini);
         self.time_sites_G = self.time_site_D.group().reduce(self.addH, self.remH, self.ini);
@@ -79,6 +72,7 @@ var Failover = new function() {
         self.update_time_extent(self.period, self.extent_span);
 
         // The time series
+        self.sites_color_scale = hsl_set(self.site_list.length, 70, 50);
         self.time_chart.width(self.time_chart_width)
                   .height(self.time_chart_height)
                   .margins({top: 30, right: 30+self.sites_legend_space_h, bottom: 60, left: 70})
@@ -167,7 +161,7 @@ var Failover = new function() {
                 .innerRadius(0.3*self.groups_radius)
                 .dimension(self.squid_D)
                 .group(self.squid_G)
-                .ordinalColors([hsl_set(1, 100, 40, 100), hsl_set(1, 100, 40, 10)])
+                .ordinalColors([hsl_set(1, 100, 40, 100), hsl_set(1, 100, 40, 10)]) 
                 .title(function(d) { return d.key + ": " + d.value + " Hits"; })
                 .label(function (d) {
                     if (self.squid_chart.hasFilter() && !self.squid_chart.hasFilter(d.key))
@@ -183,6 +177,7 @@ var Failover = new function() {
         self.table_field_map = { 'Host': 'Host', 'Is Squid?': 'IsSquid',
                                  'Time': 'Timestamp', 'Hits': 'Hits',
                                  'Bandwidth' : 'Bandwidth' };
+        self.hosts_table_filter_control = d3.select('#ht-reset'); 
         self.hosts_table.dimension(self.site_D)
                 .group(function(d) { return d.Sites.replace(/\n/g, ' | '); })
                 .columns([
@@ -204,6 +199,21 @@ var Failover = new function() {
                 .size(Infinity)
                 .renderlet(function(table){
                         table.selectAll(".dc-table-group").classed("info", true);
+                 })
+                .renderlet(function(table){
+                        table.selectAll(".dc-table-column._0")
+                             .on('click', function(){
+                                 var host = d3.select(this).select('span').text();
+                                 self.host_D.filterExact(host);
+                                 self.hosts_table_filter_control.selectAll('.reset')
+                                                                .style('display', null);
+                                 self.hosts_table_filter_control.selectAll('.filter')
+                                                                .style('display', null);
+                                 dc.redrawAll();
+                                 // This must be run after redrawAll, else it does not render
+                                 self.hosts_table_filter_control.selectAll('.filter')
+                                                                .text('Host ' + host);
+                              })
                  });
 
         // Sorting functionality of fields
@@ -295,6 +305,15 @@ var Failover = new function() {
     self.time_chart_reset = function() {
         self.site_D.filterAll();
         self.time_chart.turnOffControls();
+        dc.redrawAll();
+    };
+
+    self.hosts_table_reset = function() {
+        self.host_D.filterAll();
+        self.hosts_table_filter_control.selectAll('.reset')
+                                       .style('display', 'none');
+        self.hosts_table_filter_control.selectAll('.filter')
+                                       .style('display', 'none');
         dc.redrawAll();
     };
 }

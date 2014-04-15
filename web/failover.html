@@ -41,7 +41,7 @@
         <div class="col-md-6">
             <div id="group-chart" class="dc-chart">
                 <div class="row">
-                    <div><h4>Machine Groups</h4></div>
+                    <div><h4 class="easy-inline">Machine Groups</h4></div>
                     <div>
                         <a class="reset" href="javascript:Failover.group_chart.filterAll(); dc.redrawAll();" style="display: none;">Reset</a>
                         <span class="reset" style="display: none;"></span>            
@@ -54,7 +54,7 @@
         <div class="col-md-6">
             <div id="squid-chart" class="dc-chart">
                 <div class="row">
-                    <div><h4>Host Type</h4></div>
+                    <div><h4 class="easy-inline">Host Type</h4></div>
                     <div>
                         <a class="reset" href="javascript:Failover.squid_chart.filterAll(); dc.redrawAll();" style="display: none;">Reset</a>
                         <span class="reset" style="display: none;"></span>
@@ -67,19 +67,24 @@
 
     <div class="row">
         <div id="time-chart" class="dc-chart">
-            <div><h4>Hits by site per hour</h4></div>
+            <div><h4 class="easy-inline">Hits by site per hour</h4></div>
             <div>
                 <a class="reset" href="javascript:Failover.time_chart_reset();" style="display: none;">Reset</a>
-                <span class="reset" style="display: none;"> | Filter: <span class="filter"></span></span>
+                <span class="reset" style="display: none;"> | <strong>Filter:</strong> <span class="filter"></span></span>
             </div>
             <div class="clearfix"></div>
         </div>
     </div>
 
     <div class="row">
-        <h4>Access History Detail</h4>
-        <p>By clicking on one of the column headers, the sorting field is chosen and ordering is toggled. The <strong>Host</strong>, <strong>Hits</strong> and <strong>Bandwidth</strong> columns provide complementary information in their rows' tooltips.</p>
-        <div class="col-md-8 col-md-offset-2">
+        <div><h4 class="easy-inline">Access History Detail</h4></div>
+        <div id="ht-reset">
+            <a class="reset" href="javascript:Failover.hosts_table_reset();" style="display: none;">Reset</a>
+            <span class="reset" style="display: none;"> | <strong>Filter:</strong> <span class="filter"></span></span>
+        </div>
+        <div class="clearfix" style="padding-top: 30px;"></div>
+        <p>By clicking on one of the column headers, the sorting field is chosen and ordering is toggled. The <strong>Host</strong>, <strong>Hits</strong> and <strong>Bandwidth</strong> columns provide complementary information in their rows' tooltips. By clicking on a host, the traffic is further filtered.</p>
+        <div class="col-md-10 col-md-offset-1">
             <table class="table table-hover table-striped table-condensed dc-data-table" id="hosts-table">
                 <thead>
                 <tr class="header">
