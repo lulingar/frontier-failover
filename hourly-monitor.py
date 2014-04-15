@@ -203,21 +203,21 @@ def gen_report (offending, groupname):
 
 def update_record (offending, past_records, now):
 
-    now_secs = datetime_to_UTC_epoch(now)
+    to_concat = []
+
+    if isinstance(past_records, pd.DataFrame):
+        to_concat.append(past_records)
 
     if offending is None:
-        to_add = None
+        new_records = None
     else:
-        to_add = offending.copy()
-        to_add['Timestamp'] = now_secs
+        new_records = offending.copy()
+        new_records['Timestamp'] = datetime_to_UTC_epoch(now)
+        to_concat.append(new_records)
 
-    if isinstance(past_records, pd.DataFrame) and \
-       isinstance(to_add, pd.DataFrame):
-        update = pd.concat([past_records, to_add], ignore_index=True)
-    else:
-        update = to_add
+    updated = pd.concat(to_concat, ignore_index=True) if to_concat else None
 
-    return update
+    return updated
 
 def write_failover_record (record, file_path):
 
