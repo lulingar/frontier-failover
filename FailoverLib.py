@@ -202,8 +202,7 @@ def tag_hosts (dataframe, host_ip_field, squids_institute_sites_map, squids_ip_s
                                              geoip=geoip )
     #TODO: Implement IP exception for some French machines
 
-    data['Sites'][data['IsSquid']] = data[host_ip_field][data['IsSquid']].map(squids_ip_sites_map)
-    data['Sites'][~data['IsSquid']] = data[host_ip_field][~data['IsSquid']].apply(wn_fun)
+    data['Sites'] = data[host_ip_field].apply(wn_fun)
 
     return data
 
