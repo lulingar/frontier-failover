@@ -15,6 +15,7 @@ var Failover = new function() {
     self.data_file = "failover.csv";
     self.date_format = d3.time.format("%b %d, %Y %I:%M %p");
     self.sites_legend_item_size = 17;
+    self.sites_legend_item_gap = 4;
     self.time_chart_width = 1024;
     self.time_chart_height = 450;
     self.groups_base_dim = 150;
@@ -65,7 +66,8 @@ var Failover = new function() {
                         }) );
         self.site_longest_name = Math.max.apply(0, self.site_names_len);
         self.num_lines = 1 + self.site_names_len.length;
-        self.sites_legend_space_v = self.num_lines * self.sites_legend_item_size;
+        self.sites_legend_space_v = self.num_lines * (self.sites_legend_item_size + 
+                                                      self.sites_legend_item_gap);
         self.sites_legend_columns = Math.ceil(self.sites_legend_space_v / (0.9*self.time_chart_height));
         self.sites_legend_space_h = (7 * self.site_longest_name) * self.sites_legend_columns + 20;
 
@@ -75,7 +77,8 @@ var Failover = new function() {
         self.sites_color_scale = hsl_set(self.site_list.length, 70, 50);
         self.time_chart.width(self.time_chart_width)
                   .height(self.time_chart_height)
-                  .margins({top: 30, right: 30+self.sites_legend_space_h, bottom: 60, left: 70})
+                  .margins({ top: 30, right: 30 + self.sites_legend_space_h,
+                             bottom: 60, left: 70 })
                   .chart( function(c) { return dc.barChart(c) } )
                   .ordinalColors(self.sites_color_scale)
                   .dimension(self.time_site_D)
@@ -251,7 +254,7 @@ var Failover = new function() {
         var dataset = dataset;
 
         dataset.forEach( function(d) {
-            // The timestamp points to the end of a period. 
+            // The timestamp points to the end of a period.
             //  this must be accounted for for plotting.
             d.Timestamp = new Date((+d.Timestamp - 3600) * 1000);
             d.Timestamp.setMinutes(0);
