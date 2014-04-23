@@ -49,7 +49,7 @@ def load_awstats_data (machine, day=None):
 
     else:
         dataframe = pd.DataFrame(None,
-                                 columns=('Host', 'Hits', 'Bandwidth', 'Last visit'))
+                                 columns=('Host', 'Hits', 'Bandwidth'))
 
     return dataframe
 
