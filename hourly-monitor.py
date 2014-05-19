@@ -16,6 +16,8 @@ TODO
 """
 def main():
 
+    pd.options.display.width = 150
+
     my_path = os.path.dirname(os.path.abspath(__file__))
     geoip_database_file = "~/scripts/geolist/GeoIPOrg.dat"
     config_file = os.path.join(my_path, "instance_config.json")
@@ -151,9 +153,9 @@ def compute_traffic_delta (now_stats_indexless, last_stats_indexless, now_timest
     deltas.fillna( now_stats[cols], inplace=True )
     # Filter out hosts whose recent activity is null
     are_active = (deltas['Hits'] > 0) & (deltas['Bandwidth'] > 0)
-    active = deltas[are_active]
+    active = deltas[are_active].copy()
 
-    inactive = deltas[~are_active]
+    inactive = deltas[~are_active].copy()
     inactive['WasOld'] = inactive.index
     inactive['WasOld'] = inactive['WasOld'].isin(last_stats.index)
 

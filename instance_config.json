@@ -1,9 +1,9 @@
 {
-   "record_file": "/tmp/master-failover-record.csv", 
+   "record_file": "failover-record.csv", 
    "groups": {
       "cmscernbp": {
          "rate_threshold": 0, 
-         "file_last_stats": "/tmp/master-last_stats_cern-bps.csv", 
+         "file_last_stats": "last_stats_cern-bps.csv", 
          "awstats": [
             "cmsbpfrontier1", 
             "cmsbpfrontier2"
@@ -13,7 +13,7 @@
       }, 
       "cmscernct": {
          "rate_threshold": 2.7777799999999999, 
-         "file_last_stats": "/tmp/master-last_stats_launchpads.csv", 
+         "file_last_stats": "last_stats_launchpads.csv", 
          "awstats": [
             "cmsfrontier1", 
             "cmsfrontier2", 
@@ -25,7 +25,7 @@
       }, 
       "cmsfnalbp": {
          "rate_threshold": 0, 
-         "file_last_stats": "/tmp/master-last_stats_fnal-bps.csv", 
+         "file_last_stats": "last_stats_fnal-bps.csv", 
          "awstats": [
             "fnal-cmsbproxy1", 
             "fnal-cmsbproxy2"

@@ -33,8 +33,7 @@ def load_awstats_data (machine, day=None):
 
     aw_url = server + url.format(instance=machine, day=day)
     dataframe = pd.read_html(aw_url, attrs={'class': 'aws_data'},
-                             match='Unique visitors', infer_types=False,
-                             header=0)[0]
+                             match='Bandwidth', header=0)[0]
 
     if isinstance(dataframe, pd.DataFrame):
 
