@@ -3,6 +3,7 @@
 import os
 import re
 import socket
+import sys
 import urllib2
 
 import pandas as pd
@@ -42,7 +43,7 @@ def get_awstats_hosts_info (awstats_file, parse_timestamps=False):
     try:
         awsf = open(awstats_file)
     except IOError:
-        print "I/O Exception when trying to open file", awstats_file
+        sys.stderr.write("I/O Exception when trying to open file {0}.\n".format(awstats_file))
         return aws_list
 
     # Get binary offset of hosts information
@@ -54,7 +55,7 @@ def get_awstats_hosts_info (awstats_file, parse_timestamps=False):
             break
 
     if not offset_known:
-        print "The file {0} is malformed".format(awstats_file)
+        sys.stderr.write("The file {0} is malformed.\n".format(awstats_file))
         return aws_list
 
     # Jump to and read hosts information

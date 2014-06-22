@@ -17,7 +17,9 @@ TODO
 def main():
 
     pd.options.display.width = 180
+
     my_path = os.path.dirname(os.path.abspath(__file__))
+    os.chdir(my_path)
 
     config_file = sys.argv[1]
     config = json.load( open(config_file))
