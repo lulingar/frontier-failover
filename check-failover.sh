@@ -1,6 +1,6 @@
 #!/bin/bash
 
-source $HOME/.bash_profile
+source $HOME/.bashrc
 
 here=$( cd $(dirname $0); pwd -P )
 config_file="${here}/config.json"
@@ -19,8 +19,10 @@ done
 echo
 echo "========================================================="
 echo "Failover Monitor starting at $(date)"
+echo "Failover Monitor starting at $(date)" >&2
 echo
 ${CUSTOM_PYTHON_VIRTUALENV}/bin/python -W ignore::DeprecationWarning $here/hourly-monitor.py ${config_file} 
 echo
 echo "Failover Monitor done at $(date)"
+echo "Failover Monitor done at $(date)" >&2
 
