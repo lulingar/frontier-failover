@@ -1,5 +1,6 @@
 #! /usr/bin/env python
 
+import os
 import re
 import socket
 import urllib2
@@ -11,40 +12,24 @@ from datetime import datetime
 from functools import partial
 from unidecode import unidecode
 
-def to_bytes (sz):
+def load_awstats_data (machine, base_path, date=None):
 
-    factors = {'b': 0, 'bytes': 0, 'kb': 10, 'mb': 20, 'gb': 30, 'tb': 40}
+    if not date:
+        date = datetime.today()
+    date_string = date.strftime('%m%Y%d')
 
-    if sz == '0': return 0
+    aws_file_tpl = "{base}/{instance}/awstats{date}.{instance}.txt"
 
-    value, fac = sz.strip().split()
-    factor = factors[ fac.lower() ]
+    aws_file = os.path.expanduser(aws_file_tpl.format(base=base_path,
+                                                      date=date_string,
+                                                      instance=machine))
 
-    return int( round( float(value) * (2 ** factor) ))
-
-def load_awstats_data (machine, day=None):
-
-    server = "http://frontier.cern.ch/"
-    url = ("awstats/awstats.pl?config={instance}&databasebreak=day"
-           "&day={day:02d}&framename=mainright&output=allhosts")
-
-    if not day:
-        day = datetime.today().day
-
-    aw_url = server + url.format(instance=machine, day=day)
-    dataframe = pd.read_html(aw_url, attrs={'class': 'aws_data'},
-                             match='Bandwidth', header=0)[0]
+    dataframe = pd.DataFrame(get_awstats_hosts_info(aws_file))
 
     if isinstance(dataframe, pd.DataFrame):
 
-        stats = dataframe.columns[0]
-        dataframe.rename(columns = {stats: 'Host'}, inplace=True)
-
         del dataframe['Pages']               # Because it is identical to 'Hits'
         del dataframe['Last visit']        # Most of the time is not useful info
-
-        dataframe['Hits'] = dataframe['Hits'].astype(int)
-        dataframe['Bandwidth'] = dataframe['Bandwidth'].map(to_bytes).astype(int)
 
     else:
         dataframe = pd.DataFrame(None,
@@ -52,11 +37,51 @@ def load_awstats_data (machine, day=None):
 
     return dataframe
 
-def download_aggregated_awstats_data (machines, day=None):
+def get_awstats_hosts_info (awstats_file, parse_timestamps=False):
+
+    awsf = open(awstats_file)
+    aws_list = []
+
+    # Get binary offset of hosts information
+    offset_known = False
+    for line in awsf:
+        if 'POS_VISITOR' in line:
+            start_read = int(line.split()[1])
+            offset_known = True
+            break
+
+    if not offset_known:
+        raise IOError("The file {0} is malformed".format(awstats_file))
+
+    # Jump to and read hosts information
+    awsf.seek(start_read, 0)
+    awsf.readline()
+    for line in awsf:
+        if 'END_VISITOR' in line: break
+
+        fields = line.split()
+
+        #Host - Pages - Hits - Bandwidth - Last visit date - [Start date of last visit] - [Last page of last visit]
+        host = fields[0]
+        pages = int(fields[1])
+        hits = int(fields[2])
+        bandwidth = int(fields[3])
+        if parse_timestamps:
+            last_visit_dt = datetime.strptime(fields[4], "%Y%m%d%H%M%S")
+        else:
+            last_visit_dt = fields[4]
+
+        aws_list.append({'Host': host, 'Pages': pages, 'Hits': hits,
+                        'Bandwidth': bandwidth, 'Last visit': last_visit_dt})
+    awsf.close()
+
+    return aws_list
+
+def download_aggregated_awstats_data (machines, base_path, date=None):
 
     data = {}
     for machine in machines:
-        data[machine] = load_awstats_data(machine, day).set_index('Host')
+        data[machine] = load_awstats_data(machine, base_path, date).set_index('Host')
 
     panel = pd.Panel(data)
     frame = panel.transpose(minor='items', items='minor', major='major')\

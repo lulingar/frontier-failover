@@ -1,9 +1,13 @@
 {
+   "exception_list": "http://wlcg-squid-monitor.cern.ch/exceptionlist.txt", 
+   "geo_list": "http://wlcg-squid-monitor.cern.ch/geolist.txt", 
+   "geoip_db": "~/scripts/geolist/GeoIPOrg.dat", 
    "record_file": "failover-record.csv", 
    "groups": {
       "cmscernbp": {
          "rate_threshold": 0, 
          "file_last_stats": "last_stats_cern-bps.csv", 
+         "awstats_base": "~dbfrontier/data/awstats/cerncms", 
          "awstats": [
             "cmsbpfrontier1", 
             "cmsbpfrontier2"
@@ -14,6 +18,7 @@
       "cmscernct": {
          "rate_threshold": 2.7777799999999999, 
          "file_last_stats": "last_stats_launchpads.csv", 
+         "awstats_base": "~dbfrontier/data/awstats/cerncms", 
          "awstats": [
             "cmsfrontier1", 
             "cmsfrontier2", 
@@ -26,6 +31,7 @@
       "cmsfnalbp": {
          "rate_threshold": 0, 
          "file_last_stats": "last_stats_fnal-bps.csv", 
+         "awstats_base": "~dbfrontier/data/awstats/cerncms", 
          "awstats": [
             "fnal-cmsbproxy1", 
             "fnal-cmsbproxy2"
