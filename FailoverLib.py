@@ -303,7 +303,7 @@ def safe_geo_fun (host_id, geo_fun):
 
     isp_u = None
     try:
-        isp_u = unicode(geo_fun(host_id))
+        isp_u = unicode(geo_fun(host_id), pygeoip.ENCODING)
     except (socket.gaierror, AttributeError):
         pass
     if not isinstance(isp_u, basestring):
