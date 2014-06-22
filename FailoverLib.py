@@ -23,11 +23,10 @@ def load_awstats_data (machine, base_path, date=None):
     aws_file = os.path.expanduser(aws_file_tpl.format(base=base_path,
                                                       date=date_string,
                                                       instance=machine))
+    data = get_awstats_hosts_info(aws_file)
 
-    dataframe = pd.DataFrame(get_awstats_hosts_info(aws_file))
-
-    if isinstance(dataframe, pd.DataFrame):
-
+    if len(data):
+        dataframe = pd.DataFrame(data)
         del dataframe['Pages']               # Because it is identical to 'Hits'
         del dataframe['Last visit']        # Most of the time is not useful info
 
@@ -39,8 +38,12 @@ def load_awstats_data (machine, base_path, date=None):
 
 def get_awstats_hosts_info (awstats_file, parse_timestamps=False):
 
-    awsf = open(awstats_file)
     aws_list = []
+    try:
+        awsf = open(awstats_file)
+    except IOError:
+        print "I/O Exception when trying to open file", awstats_file
+        return aws_list
 
     # Get binary offset of hosts information
     offset_known = False
@@ -51,7 +54,8 @@ def get_awstats_hosts_info (awstats_file, parse_timestamps=False):
             break
 
     if not offset_known:
-        raise IOError("The file {0} is malformed".format(awstats_file))
+        print "The file {0} is malformed".format(awstats_file)
+        return aws_list
 
     # Jump to and read hosts information
     awsf.seek(start_read, 0)
