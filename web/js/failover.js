@@ -106,6 +106,9 @@ var Failover = new function() {
                                self.time_chart.select('.filter')
                                               .text(short_n)
                                               .property('title', name);
+
+                               // Blind update of URL query string
+                               history.pushState(null, '', '?site=' + encodeURIComponent(name)); 
         }
 
         // Set color distribution for color consistency among page visits 
