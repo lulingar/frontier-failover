@@ -32,35 +32,12 @@ var Failover = new function() {
 
     self.setup = function(error, config, dataset) {
 
-        self.config = config;
-        self.period = config.history.period;
-        self.extent_span = 3.6e6 * config.history.span;
+        // This validates on page load.
+        if (!self.config) self.create_objects(config);
 
-        self.periodObj = minuteBunch(self.period);
-        self.periodRange = self.periodObj.range;
-        self.addH = function(p, d) { return p + d.Hits; };
-        self.remH = function(p, d) { return p - d.Hits; };
-        self.ini = function() { return 0; };
+        self.ndx.add(self.process_data(dataset));
 
-        self.ndx = crossfilter( self.process_data(dataset));
-        self.all = self.ndx.groupAll().reduce(self.addH, self.remH, self.ini);
-        self.site_D = self.ndx.dimension( function(d) { return d.Sites; })
-
-        self.time_D = self.ndx.dimension( function(d) { return d.Timestamp; });
-        self.group_D = self.ndx.dimension( function(d) {
-                                    return self.config.groups[d.Group].name;
-                                });
-        self.squid_D = self.ndx.dimension( function(d) {
-                                    return d.IsSquid ? "Squid" : "Worker Node";
-                                });
-        self.hits_D = self.ndx.dimension( function(d) { return d.Hits; });
-        self.time_site_D = self.ndx.dimension( function(d) { return [d.Timestamp, d.Sites]; });
-        self.host_D = self.ndx.dimension( function(d) { return d.Host; });
-        self.group_G = self.group_D.group().reduce(self.addH, self.remH, self.ini);
-        self.squid_G = self.squid_D.group().reduce(self.addH, self.remH, self.ini);
-        self.time_sites_G = self.time_site_D.group().reduce(self.addH, self.remH, self.ini);
-        self.hits_G = self.hits_D.group().reduce(self.addH, self.remH, self.ini);
-        self.site_list = self.site_D.group().all().map( function(d) { return d.key; });
+        self.site_list = self.site_D.group().all().map(dc.pluck('key'));
         self.site_names_len = flatten_array( self.site_list.map( function(s) {
                             return s.split('\n').map( function(s){ return s.length });
                         }) );
@@ -131,7 +108,7 @@ var Failover = new function() {
                                               .property('title', name);
         }
 
-        // Set color distribution for experience consistency across days
+        // Set color distribution for color consistency among page visits 
         self.group_colors = {}
         for (var group in self.config.groups) {
             var name = self.config.groups[group].name,
@@ -225,7 +202,7 @@ var Failover = new function() {
             var header = d3.select(this),
                 selected = header.select('.header-text').text(),
                 field = self.table_field_map[selected],
-                glyph = d3.select(this).select('.glyphicon'),
+                glyph = header.select('.glyphicon'),
                 all = self.hosts_table_headers.select('.glyphicon');
 
             self.hosts_table_headers.classed('header-inactive', function() {
@@ -243,11 +220,45 @@ var Failover = new function() {
 
             self.hosts_table.order(self.sort_order[self.current_sort_order]);
             self.hosts_table.sortBy(dc.pluck(field));
-            dc.redrawAll();
+            self.hosts_table.redraw();
         });
 
         // Draw all objects
         dc.renderAll();
+    };
+
+    self.create_objects(config) {
+
+        self.config = config;
+
+        self.period = config.history.period;
+        self.extent_span = 3.6e6 * config.history.span;
+        self.periodObj = minuteBunch(self.period);
+        self.periodRange = self.periodObj.range;
+
+        self.addH = function(p, d) { return p + d.Hits; };
+        self.remH = function(p, d) { return p - d.Hits; };
+        self.ini = function() { return 0; };
+
+        self.ndx = crossfilter();
+        self.all = self.ndx.groupAll().reduce(self.addH, self.remH, self.ini);
+
+        self.site_D = self.ndx.dimension(dc.pluck('Sites'))
+        self.time_D = self.ndx.dimension(dc.pluck('Timestamp'));
+        self.hits_D = self.ndx.dimension(dc.pluck('Hits'));
+        self.host_D = self.ndx.dimension(dc.pluck('Host'));
+        self.group_D = self.ndx.dimension( function(d) {
+                                    return self.config.groups[d.Group].name;
+                                });
+        self.squid_D = self.ndx.dimension( function(d) {
+                                    return d.IsSquid ? "Squid" : "Worker Node";
+                                });
+        self.time_site_D = self.ndx.dimension( function(d) { return [d.Timestamp, d.Sites]; });
+
+        self.group_G = self.group_D.group().reduce(self.addH, self.remH, self.ini);
+        self.squid_G = self.squid_D.group().reduce(self.addH, self.remH, self.ini);
+        self.time_sites_G = self.time_site_D.group().reduce(self.addH, self.remH, self.ini);
+        self.hits_G = self.hits_D.group().reduce(self.addH, self.remH, self.ini);
     };
 
     self.process_data = function(dataset) {
