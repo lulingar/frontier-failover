@@ -225,6 +225,8 @@ var Failover = new function() {
 
         // Draw all objects
         dc.renderAll();
+
+        self.apply_url_filters();
     };
 
     self.create_objects = function(config) {
@@ -330,14 +332,16 @@ var Failover = new function() {
                                        .style('display', 'none');
         dc.redrawAll();
     };
+
+    self.apply_url_filters = function() {
+        var url_params = getUrlVars();
+
+        if (url_params.length > 0) {
+            if ("site" in url_params) {
+                self.site_filter(url_params["site"])
+            }
+        }
+    };
 };
 
 Failover.start();
-
-var url_params = getUrlVars();
-if(url_params.length > 0) {
-    if ("site" in url_params) {
-        Failover.site_filter(url_params["site"])
-    }
-}
-
