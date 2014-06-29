@@ -71,3 +71,27 @@ function hsl_set (num_colors, sat, lum, hue_start)
     if (num_colors == 1) return colors[0];
     else return colors;
 }
+
+/* Parses simple arguments passed in the URL */
+function getUrlVars()
+{
+    var vars = [],
+        hash,
+        arg_start = window.location.href.indexOf('?'),
+        hashes;
+   
+    if (arg_start > 0) {
+        hashes = window.location.href
+                                .slice(arg_start + 1)
+                                .split('&');
+
+        for(var i = 0; i < hashes.length; i++)
+        {
+            hash = hashes[i].split('=');
+            vars.push(hash[0]);
+            vars[hash[0]] = hash[1];
+        }
+    }
+
+    return vars;
+}

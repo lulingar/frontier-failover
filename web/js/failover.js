@@ -227,7 +227,7 @@ var Failover = new function() {
         dc.renderAll();
     };
 
-    self.create_objects(config) {
+    self.create_objects = function(config) {
 
         self.config = config;
 
@@ -330,6 +330,14 @@ var Failover = new function() {
                                        .style('display', 'none');
         dc.redrawAll();
     };
-}
+};
 
 Failover.start();
+
+var url_params = getUrlVars();
+if(url_params.length > 0) {
+    if ("site" in url_params) {
+        Failover.site_filter(url_params["site"])
+    }
+}
+
