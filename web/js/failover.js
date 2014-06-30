@@ -325,6 +325,8 @@ var Failover = new function() {
         self.site_D.filterAll();
         self.time_chart.turnOffControls();
         dc.redrawAll();
+       // Blind update of URL query string
+       history.pushState(null, '', '?'); 
     };
 
     self.hosts_table_reset = function() {

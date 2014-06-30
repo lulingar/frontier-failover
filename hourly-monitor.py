@@ -1,10 +1,17 @@
 #!/usr/bin/env python
 
 import calendar
+import getpass
 import json
 import os
+import smtplib
+import socket
 import sys
+import urllib
+
 from datetime import datetime
+from email.mime.multipart import MIMEMultipart
+from email.mime.text import MIMEText
 
 import pandas as pd
 
@@ -52,8 +59,23 @@ def main():
         failover_record = pd.concat(failover_groups, ignore_index=True)
         write_failover_record(failover_record, config['record_file'])
 
-        print "Sites to send alarm to:\n", mark_activity_for_mail(failover_record)
+        marked = mark_activity_for_mail(failover_record)
+        if marked:
+            print "Sites to send alarm to:\n", marked
 
+            table = failover_record[failover_record.Sites.isin(marked)]\
+                                   .groupby(['IsSquid', 'Host'])
+            template_file = "failover-email.plain.tpl"
+            template = open(template_file).read()
+            message_str = template.format(record_span=config['history']['span'],
+                                          site_query_url=encodeURIComponent(marked[0].replace('; ', '\n')),
+                                          support_mailing_list="cms-frontier-support@cern.ch",
+                                          site_name=marked[0],
+                                          summary_table=repr(table))
+            send_email("Direct connection to Frontier servers from" + marked[0],
+                       message_str,
+                       to="luis.linares@cern.ch",
+                       reply_to="cms-frontier-support@cern.ch")
     return 0
 
 def load_records (record_file, now, record_span):
@@ -278,6 +300,51 @@ def mark_activity_for_mail (records):
     to_report = persistent.Sites.unique()
 
     return to_report
+
+def send_email (subject, message, to, reply_to='', html_message=''):
+
+    user, host = get_user_and_host_names()
+    sender = '%s@%s' % (user, host)
+
+    if isinstance(to, str):
+        receivers = to.split(',')
+    elif isinstance(to, list):
+        receivers = to
+
+    msg = MIMEMultipart('alternative')
+
+    msg['Subject'] = subject
+    msg['From'] = sender
+    msg['To'] = ", ".join(receivers)
+    if reply_to:
+        msg.add_header('Reply-to', reply_to)
+
+    # According to RFC 2046, the last part of a multipart message, in this case
+    # the HTML message, is best and preferred.
+    if message:
+        msg.attach( MIMEText(message, 'plain'))
+    if html_message:
+        msg.attach( MIMEText(html_message, 'html'))
+
+    try:
+       smtpObj = smtplib.SMTP('localhost')
+       smtpObj.sendmail (sender, receivers, msg.as_string())
+       print "Successfully sent email to:", ', '.join(receivers)
+
+    except smtplib.SMTPException:
+       print "Error: unable to send email"
+
+def get_user_and_host_names():
+
+    user = getpass.getuser()
+    host = socket.gethostname()
+
+    return user, host
+
+def encodeURIComponent(to_encode):
+    encoded = unicode(to_encode).encode('utf-8')
+
+    return urllib.quote(encoded, safe='~()*!.\'')
 
 if __name__ == "__main__":
     sys.exit(main())
