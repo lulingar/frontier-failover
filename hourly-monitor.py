@@ -60,7 +60,7 @@ def main():
         write_failover_record(failover_record, config['record_file'])
 
         marked = mark_activity_for_mail(failover_record)
-        if marked:
+        if len(marked) > 0:
             print "Sites to send alarm to:\n", marked
 
             table = failover_record[failover_record.Sites.isin(marked)]\
