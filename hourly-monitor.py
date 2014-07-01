@@ -61,7 +61,7 @@ def main():
         write_failover_record(failover_record, config['record_file'])
 
         marked = mark_activity_for_mail(failover_record)
-        if len(marked) > 0:
+        if len(marked):
             issue_emails(failover_record, marked, config, now_secs)
 
     return 0
@@ -281,7 +281,6 @@ def mark_activity_for_mail (records):
     # Wait is the time (in hours) elapsed between failover event records
     x['Wait'] = x.groupby('Sites')['Timestamp'].diff().fillna(0)/3600.0
     x.Wait = x.Wait.round().astype(int) - 1
-    x.Timestamp = x.Timestamp.apply(pd.to_datetime, unit='s')
 
     # persistent failover is that which has no wait (i.e. happens continuously)
     persistent = x[x.Wait == 0]
@@ -308,18 +307,18 @@ def issue_emails (records, marked_sites, config, now_secs):
 
         groups = []
         for group_key, group_info in config['groups'].items():
-            groups.append({"Group": group_info['name'], "Rate Threshold": group_info['rate_threshold']})
+            groups.append({"Group": group_info['name'], "RateThreshold[*]": group_info['rate_threshold']})
 
         groups_df = pd.DataFrame.from_records(groups, index=config['groups'].keys())
         groups_df.index.name = 'Group Code'
 
         message_str = template.format(record_span=config['history']['span'],
-                                        site_query_url=encodeURIComponent(site.replace('; ', '\n')),
-                                        support_mailing_list=mailing_list,
-                                        site_name=site,
-                                        server_groups=fl.dataframe_to_text(groups_df),
-                                        summary_table=fl.dataframe_to_text(table),
-                                        period=config['history']['period'])
+                                      site_query_url=encodeURIComponent(site.replace('; ', '\n')),
+                                      support_mailing_list=mailing_list,
+                                      site_name=site,
+                                      server_groups=fl.dataframe_to_text(groups_df),
+                                      summary_table=fl.dataframe_to_text(table),
+                                      period=config['history']['period'])
 
         send_email("Direct connection to Frontier servers from " + site,
                    message_str,
