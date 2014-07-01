@@ -384,6 +384,24 @@ def cms_site_name_split (site_name):
 
     return base, extra
 
+def from_bytes (sz):
+
+    if sz == 0:
+        return "0 B"
+
+    scales = {'B': 0, 'kiB': 10, 'MiB': 20, 'GiB': 30, 'TiB': 40}
+    size = float(sz)
+
+    proportion = [ [abs(1 - ((2**scale) / size)), key] for key, scale in scales.items() ]
+    proportion.sort()
+    scale = proportion[0][1];
+
+    base_part = size / 2**scales[scale]
+    size_str = "{0:.2f} {1}".format(base_part, scale)
+
+    return size_str
+
+
 if __name__ == "__main__":
 
     server_lists = "http://wlcg-squid-monitor.cern.ch/"
