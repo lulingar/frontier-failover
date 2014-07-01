@@ -12,6 +12,7 @@ please contact {support_mailing_list} by replying to this message.
 
 Groups of machines being monitored:
 {server_groups}
+
 [*] The rate is the effective number of queries per second over each sampling period ({period:d} minutes)
 
 ===== Record of Frontier server accesses in the last hour =====

@@ -296,6 +296,9 @@ def issue_emails (records, marked_sites, config, now_secs):
     mailing_list = "cms-frontier-support@cern.ch"
     template = open(template_file).read()
 
+    format_floats = lambda f: unicode("{0:.2f}".format(f))
+    rate_col_name = "RateThreshold[*]"
+
     for site in marked_sites:
 
         table = records[(records.Sites == site) & (records.Timestamp == now_secs)]\
@@ -307,17 +310,16 @@ def issue_emails (records, marked_sites, config, now_secs):
 
         groups = []
         for group_key, group_info in config['groups'].items():
-            groups.append({"Group": group_info['name'], "RateThreshold[*]": group_info['rate_threshold']})
+            groups.append({"Group": group_info['name'], rate_col_name: group_info['rate_threshold'], "Code": group_key})
 
-        groups_df = pd.DataFrame.from_records(groups, index=config['groups'].keys())
-        groups_df.index.name = 'Group Code'
+        groups_df = pd.DataFrame.from_records(groups, columns=['Group', 'Code', rate_col_name])
 
         message_str = template.format(record_span=config['history']['span'],
                                       site_query_url=encodeURIComponent(site.replace('; ', '\n')),
                                       support_mailing_list=mailing_list,
                                       site_name=site,
-                                      server_groups=fl.dataframe_to_text(groups_df),
-                                      summary_table=fl.dataframe_to_text(table),
+                                      server_groups=groups_df.to_string(index=False, float_format=format_floats, justify='right'),
+                                      summary_table=table.to_string(index=False, float_format=format_floats, justify='right'),
                                       period=config['history']['period'])
 
         send_email("Direct connection to Frontier servers from " + site,
