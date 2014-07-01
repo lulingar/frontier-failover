@@ -1,5 +1,5 @@
-This is an automated message.  Many database queries from your site have directly connected to the following servers during the last hour, with a significant proportion of them not going through your local squid:
-{server_list}
+This is an automated message.  Many database queries from your site have directly connected to the following servers during the last hour, with a high rate of queries not going through your local squid(s).
+
 The record of the last hour is displayed below. The full access history during the past {record_span} hours is available at http://wlcg-squid-monitor.cern.ch/fftest2/failover.html?site={site_query_url} .
 
 The most common sources of this problem are:
