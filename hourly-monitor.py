@@ -23,27 +23,28 @@ TODO
 """
 def main():
 
-    pd.options.display.width = 150
+    pd.options.display.width = 180
 
     my_path = os.path.dirname(os.path.abspath(__file__))
-    geoip_database_file = "~/scripts/geolist/GeoIPOrg.dat"
-    config_file = os.path.join(my_path, "instance_config.json")
-    server_lists = "http://wlcg-squid-monitor.cern.ch/"
-    geolist_file = server_lists + "geolist.txt"
-    exception_list_file = server_lists + "exceptionlist.txt"
+    os.chdir(my_path)
 
+    config_file = sys.argv[1]
     config = json.load( open(config_file))
     json.dump(config, open(config_file, 'w'), indent=3)
 
-    now = datetime.utcnow()
-    now_secs = datetime_to_UTC_epoch(now)
-    geoip = fl.GeoIPWrapper( os.path.expanduser( geoip_database_file))
+    geoip_database_file = os.path.expanduser(config['geoip_db'])
+    geoip = fl.GeoIPWrapper(geoip_database_file)
 
-    actions, WN_view, MO_view = fl.parse_exceptionlist( fl.get_url( exception_list_file))
-    geo_0 = fl.parse_geolist( fl.get_url( geolist_file))
+    exception_list = fl.get_url(config['exception_list'])
+    actions, WN_view, MO_view = fl.parse_exceptionlist(exception_list)
+
+    geo_list = fl.get_url(config['geo_list'])
+    geo_0 = fl.parse_geolist(geo_list)
+
     geo = fl.patch_geo_table(geo_0, MO_view, WN_view, actions, geoip)
     cms_tagger = fl.CMSTagger(geo, geoip)
 
+    now = datetime.utcnow()
     current_records = load_records(config['record_file'], now, config['history']['span'])
     failover_groups = []
 
@@ -91,10 +92,11 @@ def analyze_failovers_to_group (config, groupname, now, past_records, geo, tagge
     groupconf = config['groups'][groupname]
 
     instances = groupconf['awstats']
+    base_path = groupconf['awstats_base']
     last_stats_file = groupconf['file_last_stats']
     site_rate_threshold = groupconf['rate_threshold']        # Unit: Queries/sec
 
-    awdata = fl.download_aggregated_awstats_data(instances)
+    awdata = fl.download_aggregated_awstats_data(instances, base_path)
     last_timestamp, last_awdata = load_last_data(last_stats_file)
     save_last_data(last_stats_file, awdata, now)
 

@@ -1,7 +1,9 @@
 #! /usr/bin/env python
 
+import os
 import re
 import socket
+import sys
 import urllib2
 
 import pandas as pd
@@ -11,57 +13,23 @@ from datetime import datetime
 from functools import partial
 from unidecode import unidecode
 
-def to_bytes (sz):
+def load_awstats_data (machine, base_path, date=None):
 
-    factors = {'b': 0, 'bytes': 0, 'kb': 10, 'mb': 20, 'gb': 30, 'tb': 40}
+    if not date:
+        date = datetime.today()
+    date_string = date.strftime('%m%Y%d')
 
-    if sz == '0': return 0
+    aws_file_tpl = "{base}/{instance}/awstats{date}.{instance}.txt"
 
-    value, fac = sz.strip().split()
-    factor = factors[ fac.lower() ]
+    aws_file = os.path.expanduser(aws_file_tpl.format(base=base_path,
+                                                      date=date_string,
+                                                      instance=machine))
+    data = get_awstats_hosts_info(aws_file)
 
-    return int( round( float(value) * (2 ** factor) ))
-
-def from_bytes (sz):
-
-    if sz == 0:
-        return "0 B"
-
-    scales = {'B': 0, 'kiB': 10, 'MiB': 20, 'GiB': 30, 'TiB': 40}
-    size = float(sz)
-
-    proportion = [ [abs(1 - ((2**scale) / size)), key] for key, scale in scales.items() ]
-    proportion.sort()
-    scale = proportion[0][1];
-
-    base_part = size / 2**scales[scale]
-    size_str = "{0:.2f} {1}".format(base_part, scale)
-
-    return size_str
-
-def load_awstats_data (machine, day=None):
-
-    server = "http://frontier.cern.ch/"
-    url = ("awstats/awstats.pl?config={instance}&databasebreak=day"
-           "&day={day:02d}&framename=mainright&output=allhosts")
-
-    if not day:
-        day = datetime.today().day
-
-    aw_url = server + url.format(instance=machine, day=day)
-    dataframe = pd.read_html(aw_url, attrs={'class': 'aws_data'},
-                             match='Bandwidth', header=0)[0]
-
-    if isinstance(dataframe, pd.DataFrame):
-
-        stats = dataframe.columns[0]
-        dataframe.rename(columns = {stats: 'Host'}, inplace=True)
-
+    if len(data):
+        dataframe = pd.DataFrame(data)
         del dataframe['Pages']               # Because it is identical to 'Hits'
         del dataframe['Last visit']        # Most of the time is not useful info
-
-        dataframe['Hits'] = dataframe['Hits'].astype(int)
-        dataframe['Bandwidth'] = dataframe['Bandwidth'].map(to_bytes).astype(int)
 
     else:
         dataframe = pd.DataFrame(None,
@@ -69,11 +37,56 @@ def load_awstats_data (machine, day=None):
 
     return dataframe
 
-def download_aggregated_awstats_data (machines, day=None):
+def get_awstats_hosts_info (awstats_file, parse_timestamps=False):
+
+    aws_list = []
+    try:
+        awsf = open(awstats_file)
+    except IOError:
+        sys.stderr.write("I/O Exception when trying to open file {0}.\n".format(awstats_file))
+        return aws_list
+
+    # Get binary offset of hosts information
+    offset_known = False
+    for line in awsf:
+        if 'POS_VISITOR' in line:
+            start_read = int(line.split()[1])
+            offset_known = True
+            break
+
+    if not offset_known:
+        sys.stderr.write("The file {0} is malformed.\n".format(awstats_file))
+        return aws_list
+
+    # Jump to and read hosts information
+    awsf.seek(start_read, 0)
+    awsf.readline()
+    for line in awsf:
+        if 'END_VISITOR' in line: break
+
+        fields = line.split()
+
+        #Host - Pages - Hits - Bandwidth - Last visit date - [Start date of last visit] - [Last page of last visit]
+        host = fields[0]
+        pages = int(fields[1])
+        hits = int(fields[2])
+        bandwidth = int(fields[3])
+        if parse_timestamps:
+            last_visit_dt = datetime.strptime(fields[4], "%Y%m%d%H%M%S")
+        else:
+            last_visit_dt = fields[4]
+
+        aws_list.append({'Host': host, 'Pages': pages, 'Hits': hits,
+                        'Bandwidth': bandwidth, 'Last visit': last_visit_dt})
+    awsf.close()
+
+    return aws_list
+
+def download_aggregated_awstats_data (machines, base_path, date=None):
 
     data = {}
     for machine in machines:
-        data[machine] = load_awstats_data(machine, day).set_index('Host')
+        data[machine] = load_awstats_data(machine, base_path, date).set_index('Host')
 
     panel = pd.Panel(data)
     frame = panel.transpose(minor='items', items='minor', major='major')\
@@ -290,7 +303,7 @@ def safe_geo_fun (host_id, geo_fun):
 
     isp_u = None
     try:
-        isp_u = unicode(geo_fun(host_id))
+        isp_u = unicode(geo_fun(host_id), pygeoip.ENCODING)
     except (socket.gaierror, AttributeError):
         pass
     if not isinstance(isp_u, basestring):
