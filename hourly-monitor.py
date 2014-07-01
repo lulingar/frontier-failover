@@ -62,7 +62,7 @@ def main():
 
         marked = mark_activity_for_mail(failover_record)
         if len(marked) > 0:
-            issue_emails (failover_record, marked_sites, config, now_secs)
+            issue_emails(failover_record, marked, config, now_secs)
 
     return 0
 
@@ -291,13 +291,13 @@ def mark_activity_for_mail (records):
 
 def issue_emails (records, marked_sites, config, now_secs):
 
-    print "Sites to send alarm to:\n", marked
+    print "Sites to send alarm to:\n", marked_sites
 
     template_file = "failover-email.plain.tpl"
     mailing_list = "cms-frontier-support@cern.ch"
     template = open(template_file).read()
 
-    for site in marked:
+    for site in marked_sites:
 
         table = records[(records.Sites == site) & (records.Timestamp == now_secs)]\
                        .drop(['Sites', 'Timestamp'], axis=1)\
