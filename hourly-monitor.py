@@ -71,7 +71,11 @@ def main():
 
                 table = failover_record[failover_record.Sites == site]\
                                        .drop('Sites', axis=1)\
-                                       .set_index(['IsSquid', 'Host'])
+                                       .set_index(['IsSquid', 'Group', 'Host'])\
+                                       .sortlevel(0)\
+                                       .reindex(columns=['Ip', 'Hits', 'Bandwidth', 'Timestamp'])
+                table.Timestamp = pd.to_datetime(table.Timestamp, unit='s')
+                table.Bandwidth = table.Bandwidth.apply(from_bytes)
 
                 message_str = template.format(record_span=config['history']['span'],
                                             site_query_url=encodeURIComponent(site.replace('; ', '\n')),
