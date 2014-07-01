@@ -36,6 +36,7 @@ def main():
     json.dump(config, open(config_file, 'w'), indent=3)
 
     now = datetime.utcnow()
+    now_secs = datetime_to_UTC_epoch(now)
     geoip = fl.GeoIPWrapper( os.path.expanduser( geoip_database_file))
 
     actions, WN_view, MO_view = fl.parse_exceptionlist( fl.get_url( exception_list_file))
@@ -61,32 +62,8 @@ def main():
 
         marked = mark_activity_for_mail(failover_record)
         if len(marked) > 0:
-            print "Sites to send alarm to:\n", marked
+            issue_emails (failover_record, marked_sites, config, now_secs)
 
-            template_file = "failover-email.plain.tpl"
-            mailing_list = "cms-frontier-support@cern.ch"
-            template = open(template_file).read()
-
-            for site in marked:
-
-                table = failover_record[failover_record.Sites == site]\
-                                       .drop('Sites', axis=1)\
-                                       .set_index(['IsSquid', 'Group', 'Host'])\
-                                       .sortlevel(0)\
-                                       .reindex(columns=['Ip', 'Hits', 'Bandwidth', 'Timestamp'])
-                table.Timestamp = pd.to_datetime(table.Timestamp, unit='s')
-                table.Bandwidth = table.Bandwidth.apply(fl.from_bytes)
-
-                message_str = template.format(record_span=config['history']['span'],
-                                            site_query_url=encodeURIComponent(site.replace('; ', '\n')),
-                                            support_mailing_list=mailing_list,
-                                            site_name=site,
-                                            summary_table=repr(table))
-
-                send_email("Direct connection to Frontier servers from " + site,
-                        message_str,
-                        to="luis.linares@cern.ch",
-                        reply_to=mailing_list)
     return 0
 
 def load_records (record_file, now, record_span):
@@ -311,6 +288,43 @@ def mark_activity_for_mail (records):
     to_report = persistent.Sites.unique()
 
     return to_report
+
+def issue_emails (records, marked_sites, config, now_secs):
+
+    print "Sites to send alarm to:\n", marked
+
+    template_file = "failover-email.plain.tpl"
+    mailing_list = "cms-frontier-support@cern.ch"
+    template = open(template_file).read()
+
+    for site in marked:
+
+        table = records[records.Sites == site && records.Timestamp == now_secs]\
+                       .drop(['Sites', 'Timestamp'], axis=1)\
+                       .set_index(['IsSquid', 'Group', 'Host'])\
+                       .sortlevel(0)\
+                       .reindex(columns=['Ip', 'Hits', 'Bandwidth'])
+        table.Bandwidth = table.Bandwidth.apply(fl.from_bytes)
+
+        groups = []
+        for group_key, group_info in config['groups'].items():
+            groups.append({"Group": group_info['name'], "Rate Threshold": group_info['rate_threshold']})
+
+        groups_df = pd.DataFrame.from_records(groups, index=config['groups'].keys())
+        groups_df.index.name = 'Group Code'
+
+        message_str = template.format(record_span=config['history']['span'],
+                                        site_query_url=encodeURIComponent(site.replace('; ', '\n')),
+                                        support_mailing_list=mailing_list,
+                                        site_name=site,
+                                        server_groups=fl.dataframe_to_text(groups_df),
+                                        summary_table=fl.dataframe_to_text(table),
+                                        period=config['history']['period'])
+
+        send_email("Direct connection to Frontier servers from " + site,
+                   message_str,
+                   to="luis.linares@cern.ch",
+                   reply_to=mailing_list)
 
 def send_email (subject, message, to, reply_to='', html_message=''):
 

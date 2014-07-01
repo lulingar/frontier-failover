@@ -366,6 +366,10 @@ def cms_site_name_split (site_name):
 
     return base, extra
 
+def dataframe_to_text (dataframe):
+
+    return '\n'.join(str(dataframe).splitlines()[:-2])
+
 if __name__ == "__main__":
 
     server_lists = "http://wlcg-squid-monitor.cern.ch/"
