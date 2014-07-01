@@ -75,7 +75,7 @@ def main():
                                        .sortlevel(0)\
                                        .reindex(columns=['Ip', 'Hits', 'Bandwidth', 'Timestamp'])
                 table.Timestamp = pd.to_datetime(table.Timestamp, unit='s')
-                table.Bandwidth = table.Bandwidth.apply(from_bytes)
+                table.Bandwidth = table.Bandwidth.apply(fl.from_bytes)
 
                 message_str = template.format(record_span=config['history']['span'],
                                             site_query_url=encodeURIComponent(site.replace('; ', '\n')),
