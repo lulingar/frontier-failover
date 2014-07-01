@@ -44,15 +44,16 @@ def main():
     geo = fl.patch_geo_table(geo_0, MO_view, WN_view, actions, geoip)
     cms_tagger = fl.CMSTagger(geo, geoip)
 
-    now = datetime.utcnow()
-    current_records = load_records(config['record_file'], now, config['history']['span'])
+    now_timestamp = datetime_to_UTC_epoch( datetime.utcnow() )
+    current_records = load_records(config['record_file'], now_timestamp, config['history']['span'])
     failover_groups = []
 
     for machine_group_name in config['groups'].keys():
 
         past_records = get_group_records(current_records, machine_group_name)
-        failover = analyze_failovers_to_group( config, machine_group_name, now,
-                                               past_records, geo, cms_tagger )
+        failover = analyze_failovers_to_group( config, machine_group_name,
+                                               now_timestamp, past_records,
+                                               geo, cms_tagger )
         if isinstance(failover, pd.DataFrame):
             failover['Group'] = machine_group_name
             failover_groups.append(failover.copy())
@@ -63,14 +64,13 @@ def main():
 
         marked = mark_activity_for_mail(failover_record)
         if len(marked):
-            issue_emails(failover_record, marked, config, now_secs)
+            issue_emails(failover_record, marked, config, now_timestamp)
 
     return 0
 
-def load_records (record_file, now, record_span):
+def load_records (record_file, now_timestamp, record_span):
 
-    now_secs = datetime_to_UTC_epoch(now)
-    old_cutoff = now_secs - record_span*3600
+    old_cutoff = now_timestamp - record_span*3600
 
     if os.path.exists(record_file):
         records = pd.read_csv(record_file, index_col=False)
@@ -87,7 +87,7 @@ def get_group_records (records, group_name):
     else:
         return None
 
-def analyze_failovers_to_group (config, groupname, now, past_records, geo, tagger_object):
+def analyze_failovers_to_group (config, groupname, now_timestamp, past_records, geo, tagger_object):
 
     groupconf = config['groups'][groupname]
 
@@ -98,12 +98,12 @@ def analyze_failovers_to_group (config, groupname, now, past_records, geo, tagge
 
     awdata = fl.download_aggregated_awstats_data(instances, base_path)
     last_timestamp, last_awdata = load_last_data(last_stats_file)
-    save_last_data(last_stats_file, awdata, now)
+    save_last_data(last_stats_file, awdata, now_timestamp)
 
     if last_awdata is None:
         return None
 
-    awdata = compute_traffic_delta( awdata, last_awdata, now, last_timestamp)
+    awdata = compute_traffic_delta( awdata, last_awdata, now_timestamp, last_timestamp)
 
     if len(awdata) > 0:
 
@@ -120,7 +120,7 @@ def analyze_failovers_to_group (config, groupname, now, past_records, geo, tagge
     else:
         offending = None
 
-    failovers = update_record (offending, past_records, now)
+    failovers = update_record (offending, past_records, now_timestamp)
     gen_report (offending, groupconf['name'])
 
     return failovers
@@ -129,7 +129,7 @@ def load_last_data (last_stats_file):
 
     if os.path.exists(last_stats_file):
         fobj = open(last_stats_file)
-        last_timestamp = datetime.utcfromtimestamp( int( fobj.next().strip()))
+        last_timestamp = int( fobj.next().strip())
         fobj.close()
 
         last_awdata = pd.read_csv(last_stats_file, index_col=False, skiprows=1)
@@ -173,8 +173,8 @@ def compute_traffic_delta (now_stats_indexless, last_stats_indexless, now_timest
 
     # Add computed columns to table, dropping the original columns since they
     # are an accumulation.
-    delta_t = datetime_to_UTC_epoch(now_timestamp) - datetime_to_UTC_epoch(last_timestamp)
-    rates = active / float(delta_t)
+    delta_t = float(now_timestamp - last_timestamp)
+    rates = active / delta_t
     rates = rates.rename(columns = lambda x: x + "Rate")
     table = now_stats.drop(cols, axis=1)\
                      .join([active, rates], how='inner')
@@ -215,7 +215,7 @@ def gen_report (offending, groupname):
     else:
         print " None.\n"
 
-def update_record (offending, past_records, now):
+def update_record (offending, past_records, now_timestamp):
 
     to_concat = []
 
@@ -224,7 +224,7 @@ def update_record (offending, past_records, now):
 
     if isinstance(offending, pd.DataFrame):
         new_records = offending.copy()
-        new_records['Timestamp'] = datetime_to_UTC_epoch(now)
+        new_records['Timestamp'] = int(now_timestamp)
         to_concat.append(new_records)
 
     updated = pd.concat(to_concat, ignore_index=True) if to_concat else None
@@ -290,7 +290,7 @@ def mark_activity_for_mail (records):
 
     return to_report
 
-def issue_emails (records, marked_sites, config, now_secs):
+def issue_emails (records, marked_sites, config, now_timestamp):
 
     print "Sites to send alarm to:\n", marked_sites
 
@@ -303,7 +303,7 @@ def issue_emails (records, marked_sites, config, now_secs):
 
     for site in marked_sites:
 
-        table = records[(records.Sites == site) & (records.Timestamp == now_secs)]\
+        table = records[(records.Sites == site) & (records.Timestamp == now_timestamp)]\
                        .drop(['Sites', 'Timestamp'], axis=1)\
                        .set_index(['IsSquid', 'Group', 'Host'])\
                        .sortlevel(0)\
