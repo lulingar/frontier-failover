@@ -319,10 +319,10 @@ def issue_emails (records, marked_sites, config, now_secs):
                                       support_mailing_list=mailing_list,
                                       site_name=site,
                                       server_groups=groups_df.to_string(index=False, float_format=format_floats, justify='right'),
-                                      summary_table=table.to_string(index=False, float_format=format_floats, justify='right'),
+                                      summary_table=table.to_string(float_format=format_floats, justify='right'),
                                       period=config['history']['period'])
 
-        send_email("Direct connection to Frontier servers from " + site,
+        send_email("Direct Connections to Frontier servers from " + site,
                    message_str,
                    to="luis.linares@cern.ch",
                    reply_to=mailing_list)
