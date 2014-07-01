@@ -144,7 +144,7 @@ def load_last_data (last_stats_file):
 def save_last_data (last_stats_file, data, timestamp):
 
     fobj = open(last_stats_file, 'w')
-    fobj.write( str(datetime_to_UTC_epoch(timestamp)) + '\n' )
+    fobj.write( '{0:d}\n'.format(timestamp) )
     data.to_csv(fobj, index=False)
     fobj.close()
 
