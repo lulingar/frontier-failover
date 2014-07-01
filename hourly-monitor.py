@@ -299,7 +299,7 @@ def issue_emails (records, marked_sites, config, now_secs):
 
     for site in marked:
 
-        table = records[records.Sites == site && records.Timestamp == now_secs]\
+        table = records[(records.Sites == site) & (records.Timestamp == now_secs)]\
                        .drop(['Sites', 'Timestamp'], axis=1)\
                        .set_index(['IsSquid', 'Group', 'Host'])\
                        .sortlevel(0)\
