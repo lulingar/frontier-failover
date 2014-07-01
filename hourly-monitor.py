@@ -63,19 +63,26 @@ def main():
         if len(marked) > 0:
             print "Sites to send alarm to:\n", marked
 
-            table = failover_record[failover_record.Sites.isin(marked)]\
-                                   .groupby(['IsSquid', 'Host'])
             template_file = "failover-email.plain.tpl"
+            mailing_list = "cms-frontier-support@cern.ch"
             template = open(template_file).read()
-            message_str = template.format(record_span=config['history']['span'],
-                                          site_query_url=encodeURIComponent(marked[0].replace('; ', '\n')),
-                                          support_mailing_list="cms-frontier-support@cern.ch",
-                                          site_name=marked[0],
-                                          summary_table=repr(table))
-            send_email("Direct connection to Frontier servers from" + marked[0],
-                       message_str,
-                       to="luis.linares@cern.ch",
-                       reply_to="cms-frontier-support@cern.ch")
+
+            for site in marked:
+
+                table = failover_record[failover_record.Sites == site]\
+                                       .drop('Sites', axis=1)\
+                                       .set_index(['IsSquid', 'Host'])
+
+                message_str = template.format(record_span=config['history']['span'],
+                                            site_query_url=encodeURIComponent(site.replace('; ', '\n')),
+                                            support_mailing_list=mailing_list,
+                                            site_name=site,
+                                            summary_table=repr(table))
+
+                send_email("Direct connection to Frontier servers from " + site,
+                        message_str,
+                        to="luis.linares@cern.ch",
+                        reply_to=mailing_list)
     return 0
 
 def load_records (record_file, now, record_span):
