@@ -298,7 +298,8 @@ def issue_emails (records, marked_sites, config, now_timestamp):
     sites_delimiter = '; '
     mailing_list = config['support_email']
     template = open(template_file).read()
-    contacts = fl.parse_site_contacts_file(config['emails_list_file'])
+    contacs_file = os.path.expanduser(config['emails_list_file'])
+    contacts = fl.parse_site_contacts_file(contacs_file)
 
     format_floats = lambda f: unicode("{0:.2f}".format(f))
     rate_col_name = "RateThreshold[*]"
