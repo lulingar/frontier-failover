@@ -28,7 +28,7 @@ def main():
     my_path = os.path.dirname(os.path.abspath(__file__))
     os.chdir(my_path)
 
-    config_file = sys.argv[1]
+    config_file = os.path.expanduser(sys.argv[1])
     config = json.load( open(config_file))
     json.dump(config, open(config_file, 'w'), indent=3)
 
@@ -210,7 +210,8 @@ def gen_report (offending, groupname):
         pd.options.display.width = 130
         pd.options.display.max_rows = 100
 
-        print '\n', for_report.set_index(['Sites', 'IsSquid', 'Host']).sortlevel(0), "\n"
+        to_print = for_report.set_index(['Sites', 'IsSquid', 'Host']).sortlevel(0)
+        print "\n" + to_print.to_string(index=False) + "\n"
 
     else:
         print " None.\n"
@@ -298,8 +299,8 @@ def issue_emails (records, marked_sites, config, now_timestamp):
     sites_delimiter = '; '
     mailing_list = config['support_email']
     template = open(template_file).read()
-    contacs_file = os.path.expanduser(config['emails_list_file'])
-    contacts = fl.parse_site_contacts_file(contacs_file)
+    contacts_file = os.path.expanduser(config['emails_list_file'])
+    contacts = fl.parse_site_contacts_file(contacts_file)
 
     format_floats = lambda f: unicode("{0:.2f}".format(f))
     rate_col_name = "RateThreshold[*]"
@@ -310,7 +311,7 @@ def issue_emails (records, marked_sites, config, now_timestamp):
 
     for sites in marked_sites:
 
-        table = records[(records.Sites == site) & (records.Timestamp == now_timestamp)]\
+        table = records[(records.Sites == sites) & (records.Timestamp == now_timestamp)]\
                        .drop(['Sites', 'Timestamp'], axis=1)\
                        .set_index(['IsSquid', 'Group', 'Host'])\
                        .sortlevel(0)\
@@ -318,13 +319,14 @@ def issue_emails (records, marked_sites, config, now_timestamp):
         table.Bandwidth = table.Bandwidth.apply(fl.from_bytes)
 
         message_str = template.format(record_span=config['history']['span'],
-                                      site_query_url=encodeURIComponent(site.replace(sites_delimiter, '\n')),
-                                      support_mailing_list=mailing_list,
-                                      site_name=site,
+                                      site_query_url=encodeURIComponent(sites.replace(sites_delimiter, '\n')),
+                                      support_email=mailing_list,
+                                      site_name=sites,
                                       server_groups=groups_df.to_string(index=False, float_format=format_floats, justify='right'),
                                       summary_table=table.to_string(float_format=format_floats, justify='right'),
                                       period=config['history']['period'])
         target_emails = set( sum([ contacts[site] for site in sites.split(sites_delimiter) ], [] ))
+        target_emails.add(mailing_list)
 
         send_email("Direct Connections to Frontier servers from " + site,
                    message_str + '\nTO send: ' + ', '.join(target_emails),
@@ -372,6 +374,7 @@ def get_user_and_host_names():
     return user, host
 
 def encodeURIComponent(to_encode):
+
     encoded = unicode(to_encode).encode('utf-8')
 
     return urllib.quote(encoded, safe='~()*!.\'')
