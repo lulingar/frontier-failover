@@ -401,6 +401,25 @@ def from_bytes (sz):
 
     return size_str
 
+def parse_site_contacts_file (site_contacts_file):
+
+    contacts = {}
+
+    for i, line in enumerate(open(site_contacts_file)):
+        plain = line.strip()
+        if plain.startswith('#'): continue
+
+        parts = plain.split()
+        if len(parts) != 2:
+            error_tpl = "The contacts file {0} is corrupt at line {1:d}:\n{2}\n"
+            error_msg = error_tpl.format(site_contacts_file, i+1, line)
+            sys.stderr.write(error_msg)
+            return contacts
+
+        site, emails = parts
+        contacts[site] = emails.split(',')
+
+    return contacts
 
 if __name__ == "__main__":
 

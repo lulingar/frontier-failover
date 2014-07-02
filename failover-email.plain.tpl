@@ -8,7 +8,7 @@ The most common sources of this problem are:
     3. Not all local IP addresses are in squid's access control lists
 
 When you have found the cause of the problem or if you have any questions, 
-please contact {support_mailing_list} by replying to this message.
+please contact {support_email} by replying to this message.
 
 Groups of machines being monitored:
 {server_groups}

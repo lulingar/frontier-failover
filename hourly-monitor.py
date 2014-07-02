@@ -295,13 +295,19 @@ def issue_emails (records, marked_sites, config, now_timestamp):
     print "Sites to send alarm to:\n", marked_sites
 
     template_file = "failover-email.plain.tpl"
-    mailing_list = "cms-frontier-support@cern.ch"
+    sites_delimiter = '; '
+    mailing_list = config['support_email']
     template = open(template_file).read()
+    contacts = fl.parse_site_contacts_file(config['emails_list_file'])
 
     format_floats = lambda f: unicode("{0:.2f}".format(f))
     rate_col_name = "RateThreshold[*]"
+    groups = []
+    for group_key, group_info in config['groups'].items():
+        groups.append({"Group": group_info['name'], rate_col_name: group_info['rate_threshold'], "Code": group_key})
+    groups_df = pd.DataFrame.from_records(groups, columns=['Group', 'Code', rate_col_name])
 
-    for site in marked_sites:
+    for sites in marked_sites:
 
         table = records[(records.Sites == site) & (records.Timestamp == now_timestamp)]\
                        .drop(['Sites', 'Timestamp'], axis=1)\
@@ -310,22 +316,17 @@ def issue_emails (records, marked_sites, config, now_timestamp):
                        .reindex(columns=['Ip', 'Hits', 'Bandwidth'])
         table.Bandwidth = table.Bandwidth.apply(fl.from_bytes)
 
-        groups = []
-        for group_key, group_info in config['groups'].items():
-            groups.append({"Group": group_info['name'], rate_col_name: group_info['rate_threshold'], "Code": group_key})
-
-        groups_df = pd.DataFrame.from_records(groups, columns=['Group', 'Code', rate_col_name])
-
         message_str = template.format(record_span=config['history']['span'],
-                                      site_query_url=encodeURIComponent(site.replace('; ', '\n')),
+                                      site_query_url=encodeURIComponent(site.replace(sites_delimiter, '\n')),
                                       support_mailing_list=mailing_list,
                                       site_name=site,
                                       server_groups=groups_df.to_string(index=False, float_format=format_floats, justify='right'),
                                       summary_table=table.to_string(float_format=format_floats, justify='right'),
                                       period=config['history']['period'])
+        target_emails = set( sum([ contacts[site] for site in sites.split(sites_delimiter) ], [] ))
 
         send_email("Direct Connections to Frontier servers from " + site,
-                   message_str,
+                   message_str + '\nTO send: ' + ', '.join(target_emails),
                    to="luis.linares@cern.ch",
                    reply_to=mailing_list)
 

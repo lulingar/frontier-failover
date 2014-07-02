@@ -2,6 +2,8 @@
    "exception_list": "http://wlcg-squid-monitor.cern.ch/exceptionlist.txt", 
    "geo_list": "http://wlcg-squid-monitor.cern.ch/geolist.txt", 
    "geoip_db": "~/scripts/geolist/GeoIPOrg.dat", 
+   "emails_list_file": "~/conf/config.cms/site-contacts.txt", 
+   "support_email": "cms-frontier-support@cern.ch", 
    "record_file": "failover-record.csv", 
    "groups": {
       "cmscernbp": {
