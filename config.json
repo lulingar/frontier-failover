@@ -1,49 +1,55 @@
 {
-   "exception_list": "http://wlcg-squid-monitor.cern.ch/exceptionlist.txt",
-   "geo_list": "http://wlcg-squid-monitor.cern.ch/geolist.txt",
-   "geoip_db": "~/scripts/geolist/GeoIPOrg.dat",
-   "emails_list_file": "~/conf/config.cms/site-contacts.txt",
-   "support_email": "cms-frontier-support@cern.ch",
-   "record_file": "failover-record.csv",
+   "exception_list": "http://wlcg-squid-monitor.cern.ch/exceptionlist.txt", 
+   "record_file": "failover-record.csv", 
+   "geoip_db": "~/scripts/geolist/GeoIPOrg.dat", 
    "groups": {
       "cmscernbp": {
-         "rate_threshold": 0,
-         "file_last_stats": "last_stats_cern-bps.csv",
-         "awstats_base": "~squidmon/data/awstats/cerncms",
+         "awstats_base": "~squidmon/data/awstats/cerncms", 
+         "name": "CERN Frontier Backup Proxies", 
+         "rate_threshold": 0, 
          "awstats": [
-            "cmsbpfrontier1",
+            "cmsbpfrontier1", 
             "cmsbpfrontier2"
-         ],
-         "order": 1,
-         "name": "CERN Frontier Backup Proxies"
-      },
+         ], 
+         "file_last_stats": "last_stats_cern-bps.csv", 
+         "order": 1
+      }, 
       "cmscernct": {
-         "rate_threshold": 2.7777799999999999,
-         "file_last_stats": "last_stats_launchpads.csv",
-         "awstats_base": "~squidmon/data/awstats/cerncms",
+         "awstats_base": "~squidmon/data/awstats/cerncms", 
+         "name": "CERN Frontier Launchpads", 
+         "rate_threshold": 2.7777799999999999, 
          "awstats": [
-            "cmsfrontier1",
-            "cmsfrontier2",
-            "cmsfrontier3",
+            "cmsfrontier1", 
+            "cmsfrontier2", 
+            "cmsfrontier3", 
             "cmsfrontier4"
-         ],
-         "order": 0,
-         "name": "CERN Frontier Launchpads"
-      },
+         ], 
+         "file_last_stats": "last_stats_launchpads.csv", 
+         "order": 0
+      }, 
       "cmsfnalbp": {
-         "rate_threshold": 0,
-         "file_last_stats": "last_stats_fnal-bps.csv",
-         "awstats_base": "~squidmon/data/awstats/cerncms",
+         "awstats_base": "~squidmon/data/awstats/cerncms", 
+         "name": "Fermilab Frontier Backup Proxies", 
+         "rate_threshold": 0, 
          "awstats": [
-            "fnal-cmsbproxy1",
+            "fnal-cmsbproxy1", 
             "fnal-cmsbproxy2"
-         ],
-         "order": 2,
-         "name": "Fermilab Frontier Backup Proxies"
+         ], 
+         "file_last_stats": "last_stats_fnal-bps.csv", 
+         "order": 2
       }
-   },
+   }, 
+   "emails": {
+      "template_file": "failover-email.plain.tpl", 
+      "periodicity": 24, 
+      "support_list": "cms-frontier-support@cern.ch", 
+      "check_window": 24, 
+      "record_file": "email-record.csv", 
+      "list_file": "~/conf/config.cms/site-contacts.txt"
+   }, 
+   "geo_list": "http://wlcg-squid-monitor.cern.ch/geolist.txt", 
    "history": {
-      "span": 72,
+      "span": 72, 
       "period": 60
    }
 }

@@ -3,10 +3,12 @@
 import calendar
 import getpass
 import json
+import numbers
 import os
 import smtplib
 import socket
 import sys
+import time
 import urllib
 
 from datetime import datetime
@@ -61,19 +63,17 @@ def main():
     if len(failover_groups):
         failover_record = pd.concat(failover_groups, ignore_index=True)
         write_failover_record(failover_record, config['record_file'])
-
-        marked = mark_activity_for_mail(failover_record)
-        if len(marked):
-            issue_emails(failover_record, marked, config, now_timestamp)
+        issue_emails(failover_record, config, now_timestamp)
 
     return 0
 
 def load_records (record_file, now_timestamp, record_span):
 
     old_cutoff = now_timestamp - record_span*3600
+    file_path = os.path.expanduser(record_file)
 
-    if os.path.exists(record_file):
-        records = pd.read_csv(record_file, index_col=False)
+    if os.path.exists(file_path):
+        records = pd.read_csv(file_path, index_col=False)
         records = records[ records['Timestamp'] >= old_cutoff ]
     else:
         records = None
@@ -160,9 +160,9 @@ def compute_traffic_delta (now_stats_indexless, last_stats_indexless, now_timest
     last_stats = last_stats_indexless.set_index('Ip')
 
     # Get the deltas and rates of Hits and Bandwidth of recently updated/added hosts
-    deltas = pd.np.subtract( *now_stats[cols].align(last_stats[cols], join='left') )
-    # The deltas of newly recorded hosts are their very data values
-    deltas.fillna( now_stats[cols], inplace=True )
+    now_aligned, last_aligned = now_stats[cols].align(last_stats[cols], join='left')
+    # Set previously unrecorded hosts as zero traffic
+    deltas = now_aligned - last_aligned.fillna(0) 
     # Filter out hosts whose recent activity is null
     are_active = (deltas['Hits'] > 0) & (deltas['Bandwidth'] > 0)
     active = deltas[are_active].copy()
@@ -211,7 +211,8 @@ def gen_report (offending, groupname):
         pd.options.display.max_rows = 100
 
         to_print = for_report.set_index(['Sites', 'IsSquid', 'Host']).sortlevel(0)
-        print "\n" + to_print.to_string(index=False) + "\n"
+        column_order = ['Hits', 'HitsRate', 'Bandwidth', 'BandwidthRate']
+        print "\n" + to_print.reindex(columns=column_order).to_string() + "\n"
 
     else:
         print " None.\n"
@@ -278,9 +279,15 @@ def reduce_to_rank (dataframe, columns, ranks=5, reduction_ops={}, tagged_fields
 
     return reduced.T.copy()
 
-def mark_activity_for_mail (records):
+def mark_activity_for_mail (records, now_timestamp, window=None):
 
-    x = records[['Sites', 'Timestamp']].drop_duplicates()
+    if isinstance(window, numbers.Number):
+        start_of_window = now_timestamp - window*3600
+        view = records[ records.Timestamp >= start_of_window ]
+    else:
+        view = records
+
+    x = view[['Sites', 'Timestamp']].drop_duplicates()
     # Wait is the time (in hours) elapsed between failover event records
     x['Wait'] = x.groupby('Sites')['Timestamp'].diff().fillna(0)/3600.0
     x.Wait = x.Wait.round().astype(int) - 1
@@ -289,67 +296,114 @@ def mark_activity_for_mail (records):
     persistent = x[x.Wait == 0]
     to_report = persistent.Sites.unique()
 
+    sys.stderr.write("Wait times in hours:\n" + x.to_string() + "\n")
+
     return to_report
 
-def issue_emails (records, marked_sites, config, now_timestamp):
+def issue_emails (records, config, now_timestamp):
 
-    print "Sites to send alarm to:\n", marked_sites
+    marked = mark_activity_for_mail(records, now_timestamp, config['emails']['check_window'])
+    if not len(marked):
+        return 
 
-    template_file = "failover-email.plain.tpl"
+    destin = "luis.linares@cern.ch"
     sites_delimiter = '; '
-    mailing_list = config['support_email']
+
+    template_file = os.path.expanduser(config['emails']['template_file'])
     template = open(template_file).read()
-    contacts_file = os.path.expanduser(config['emails_list_file'])
+    contacts_file = os.path.expanduser(config['emails']['list_file'])
     contacts = fl.parse_site_contacts_file(contacts_file)
+    mailing_list = config['emails']['support_list']
+    emails_records = load_records(config['emails']['record_file'], now_timestamp,
+                                  config['emails']['periodicity'])
 
     format_floats = lambda f: unicode("{0:.2f}".format(f))
-    rate_col_name = "RateThreshold[*]"
+    rate_col_name = "RateThreshold [*]"
+    groupcode_name = "GCode"
     groups = []
     for group_key, group_info in config['groups'].items():
-        groups.append({"Group": group_info['name'], rate_col_name: group_info['rate_threshold'], "Code": group_key})
-    groups_df = pd.DataFrame.from_records(groups, columns=['Group', 'Code', rate_col_name])
+        groups.append({"Group": group_info['name'],
+                       rate_col_name: group_info['rate_threshold'],
+                       groupcode_name: group_key})
+    column_order = ['Group', groupcode_name, rate_col_name]
+    groups_df = pd.DataFrame.from_records(groups, columns=column_order)
 
-    for sites in marked_sites:
+    sent_emails = []
+    if isinstance(emails_records, pd.DataFrame):
+        new_sites = set(marked_sites) - set(emails_records.Sites.tolist())
+        print emails_records
+    else:
+        new_sites = marked_sites
 
-        table = records[(records.Sites == sites) & (records.Timestamp == now_timestamp)]\
-                       .drop(['Sites', 'Timestamp'], axis=1)\
-                       .set_index(['IsSquid', 'Group', 'Host'])\
-                       .sortlevel(0)\
-                       .reindex(columns=['Ip', 'Hits', 'Bandwidth'])
+    print "Sites to send alarm to:\n", new_sites
+
+    for sites in new_sites:
+
+        site_filter = encodeURIComponent(sites.replace(sites_delimiter, '\n'))
+        from_site = records[records.Sites == sites]
+        latest_timestamp = from_site.Timestamp.max()
+        table = from_site[from_site.Timestamp == latest_timestamp]\
+                         .drop(['Sites', 'Timestamp'], axis=1)\
+                         .rename(columns={'Group': groupcode_name})\
+                         .set_index(['IsSquid', groupcode_name, 'Host'])\
+                         .sortlevel(0)\
+                         .reindex(columns=['Ip', 'Hits', 'Bandwidth'])
         table.Bandwidth = table.Bandwidth.apply(fl.from_bytes)
 
-        message_str = template.format(record_span=config['history']['span'],
-                                      site_query_url=encodeURIComponent(sites.replace(sites_delimiter, '\n')),
-                                      support_email=mailing_list,
-                                      site_name=sites,
-                                      server_groups=groups_df.to_string(index=False, float_format=format_floats, justify='right'),
-                                      summary_table=table.to_string(float_format=format_floats, justify='right'),
-                                      period=config['history']['period'])
-        target_emails = set( sum([ contacts[site] for site in sites.split(sites_delimiter) ], [] ))
+        if sites in contacts:
+            target_emails = set(fl.flatten( contacts[site] for site in sites.split(sites_delimiter) ))
+        else:
+            target_emails = set([destin])
         target_emails.add(mailing_list)
 
-        send_email("Direct Connections to Frontier servers from " + site,
-                   message_str + '\nTO send: ' + ', '.join(target_emails),
-                   to="luis.linares@cern.ch",
+        message_str = template.format(record_span=config['history']['span'],
+                                      site_query_url=site_filter,
+                                      support_email=mailing_list,
+                                      site_name=sites,
+                                      server_groups=groups_df.to_string(index=False,
+                                                                        float_format=format_floats,
+                                                                        justify='right'),
+                                      summary_table=table.to_string(justify='right'),
+                                      period=config['history']['period'],
+                                      targets=', '.join(target_emails))
+
+        print "\nAbout to send email about", sites, "to", target_emails
+
+        send_email("Direct Connections to Frontier servers from " + sites,
+                   message_str,
+                   to=destin,
+                   cc=destin,
                    reply_to=mailing_list)
 
-def send_email (subject, message, to, reply_to='', html_message=''):
+        sent_emails.append({'Timestamp': now_timestamp, 'Sites': sites,
+                            'Addresses': ', '.join(target_emails)})
 
+    new_df = pd.DataFrame.from_records(sent_emails)
+    if isinstance(emails_records, pd.DataFrame):
+        new_df = pd.concat([emails_records, new_df])
+
+    new_df.to_csv(os.path.expanduser(config['emails']['record_file']), index=False)
+
+    return
+
+def send_email (subject, message, to, reply_to='', cc='', html_message=''):
+
+    COMMASPACE = ", "
     user, host = get_user_and_host_names()
     sender = '%s@%s' % (user, host)
 
-    if isinstance(to, str):
-        receivers = to.split(',')
-    elif isinstance(to, list):
-        receivers = to
+    receivers = make_address_list(to)
+    copies = make_address_list(cc)
 
     msg = MIMEMultipart('alternative')
 
     msg['Subject'] = subject
     msg['From'] = sender
-    msg['To'] = ", ".join(receivers)
+    msg['To'] = COMMASPACE.join(receivers)
     if reply_to:
         msg.add_header('Reply-to', reply_to)
+    if len(copies):
+        msg.add_header('CC', COMMASPACE.join(copies))
 
     # According to RFC 2046, the last part of a multipart message, in this case
     # the HTML message, is best and preferred.
@@ -358,13 +412,11 @@ def send_email (subject, message, to, reply_to='', html_message=''):
     if html_message:
         msg.attach( MIMEText(html_message, 'html'))
 
-    try:
-       smtpObj = smtplib.SMTP('localhost')
-       smtpObj.sendmail (sender, receivers, msg.as_string())
-       print "Successfully sent email to:", ', '.join(receivers)
-
-    except smtplib.SMTPException:
-       print "Error: unable to send email"
+    smtpObj = smtplib.SMTP('localhost')
+    smtpObj.set_debuglevel(1)
+    smtpObj.sendmail(sender, receivers, msg.as_string())
+    smtpObj.quit()
+    print "\nSuccessfully sent email to:", COMMASPACE.join(receivers)
 
 def get_user_and_host_names():
 
@@ -372,6 +424,16 @@ def get_user_and_host_names():
     host = socket.gethostname()
 
     return user, host
+
+def make_address_list (addresses):
+
+    if isinstance(addresses, str):
+        receivers = addresses.replace(' ','').split(',')
+
+    elif isinstance(addresses, list):
+        receivers = addresses 
+
+    return receivers 
 
 def encodeURIComponent(to_encode):
 

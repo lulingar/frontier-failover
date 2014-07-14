@@ -1,5 +1,6 @@
 #! /usr/bin/env python
 
+import itertools
 import os
 import re
 import socket
@@ -282,7 +283,7 @@ def get_dns_addresses (hostname):
     return set( e[4][0] for e in info )
 
 def flatten (iterator):
-    return sum(iterator, [])
+    return list( itertools.chain.from_iterable(iterator) )
 
 def parse_timestamp_column (series):
 
@@ -308,7 +309,7 @@ def safe_geo_fun (host_id, geo_fun):
     except (socket.gaierror, AttributeError):
         pass
     except TypeError:
-        # Depending on pygeoip version, a geo_fun would already return Unicode
+        # Depending on pygeoip version, a geo_fun might directly return Unicode
         isp_u = geo_data
 
     if not isinstance(isp_u, basestring):
