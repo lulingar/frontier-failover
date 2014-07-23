@@ -43,7 +43,7 @@ var Failover = new function() {
                         }) );
         self.site_longest_name = Math.max.apply(0, self.site_names_len);
         self.num_lines = 1 + self.site_names_len.length;
-        self.sites_legend_space_v = self.num_lines * (self.sites_legend_item_size + 
+        self.sites_legend_space_v = self.num_lines * (self.sites_legend_item_size +
                                                       self.sites_legend_item_gap);
         self.sites_legend_columns = Math.ceil(self.sites_legend_space_v / (0.9*self.time_chart_height));
         self.sites_legend_space_h = (7 * self.site_longest_name) * self.sites_legend_columns + 20;
@@ -108,10 +108,10 @@ var Failover = new function() {
                                               .property('title', name);
 
                                // Blind update of URL query string
-                               history.pushState(null, '', '?site=' + encodeURIComponent(name)); 
+                               history.pushState(null, '', '?site=' + encodeURIComponent(name));
         }
 
-        // Set color distribution for color consistency among page visits 
+        // Set color distribution for color consistency among page visits
         self.group_colors = {}
         for (var group in self.config.groups) {
             var name = self.config.groups[group].name,
@@ -144,7 +144,7 @@ var Failover = new function() {
                 .innerRadius(0.3*self.groups_radius)
                 .dimension(self.squid_D)
                 .group(self.squid_G)
-                .ordinalColors([hsl_set(1, 100, 40, 100), hsl_set(1, 100, 40, 10)]) 
+                .ordinalColors([hsl_set(1, 100, 40, 100), hsl_set(1, 100, 40, 10)])
                 .title(function(d) { return d.key + ": " + d.value + " Hits"; })
                 .label(function (d) {
                     if (self.squid_chart.hasFilter() && !self.squid_chart.hasFilter(d.key))
@@ -160,7 +160,7 @@ var Failover = new function() {
         self.table_field_map = { 'Host': 'Host', 'Is Squid?': 'IsSquid',
                                  'Time': 'Timestamp', 'Hits': 'Hits',
                                  'Bandwidth' : 'Bandwidth' };
-        self.hosts_table_filter_control = d3.select('#ht-reset'); 
+        self.hosts_table_filter_control = d3.select('#ht-reset');
         self.hosts_table.dimension(self.site_D)
                 .group(function(d) { return d.Sites.replace(/\n/g, ' | '); })
                 .columns([
@@ -326,7 +326,7 @@ var Failover = new function() {
         self.time_chart.turnOffControls();
         dc.redrawAll();
        // Blind update of URL query string
-       history.pushState(null, '', '?'); 
+       history.pushState(null, '', '?');
     };
 
     self.hosts_table_reset = function() {

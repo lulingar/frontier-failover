@@ -20,6 +20,10 @@ at http://wlcg-squid-monitor.cern.ch/fftest2/failover.html?site={site_query_url}
 
 ===== Record of Frontier server accesses in the last hour =====
 Site: {site_name} 
+Host aggregation:
+{aggregated_table}
+
+Detailed table:
 {summary_table}
 
 To be sent to: {targets} 

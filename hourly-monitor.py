@@ -12,6 +12,7 @@ import time
 import urllib
 
 from datetime import datetime
+import email
 from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText
 
@@ -330,25 +331,27 @@ def issue_emails (records, config, now_timestamp):
 
     sent_emails = []
     if isinstance(emails_records, pd.DataFrame):
-        new_sites = set(marked_sites) - set(emails_records.Sites.tolist())
+        new_sites = set(marked) - set(emails_records.Sites.tolist())
         print emails_records
     else:
-        new_sites = marked_sites
+        new_sites = marked
 
     print "Sites to send alarm to:\n", new_sites
 
     for sites in new_sites:
 
-        site_filter = encodeURIComponent(sites.replace(sites_delimiter, '\n'))
         from_site = records[records.Sites == sites]
         latest_timestamp = from_site.Timestamp.max()
-        table = from_site[from_site.Timestamp == latest_timestamp]\
-                         .drop(['Sites', 'Timestamp'], axis=1)\
-                         .rename(columns={'Group': groupcode_name})\
-                         .set_index(['IsSquid', groupcode_name, 'Host'])\
-                         .sortlevel(0)\
-                         .reindex(columns=['Ip', 'Hits', 'Bandwidth'])
+        view = from_site[from_site.Timestamp == latest_timestamp]\
+                        .drop(['Sites', 'Timestamp'], axis=1)\
+                        .rename(columns={'Group': groupcode_name})
+        table = view.set_index(['IsSquid', groupcode_name, 'Host'])\
+                    .sortlevel(0)\
+                    .reindex(columns=['Ip', 'Hits', 'Bandwidth'])
         table.Bandwidth = table.Bandwidth.apply(fl.from_bytes)
+
+        aggregation = view.groupby(['IsSquid', groupcode_name])['Hits', 'Bandwidth'].sum()
+        aggregation.Bandwidth = aggregation.Bandwidth.apply(fl.from_bytes)
 
         if sites in contacts:
             target_emails = set(fl.flatten( contacts[site] for site in sites.split(sites_delimiter) ))
@@ -356,6 +359,7 @@ def issue_emails (records, config, now_timestamp):
             target_emails = set([destin])
         target_emails.add(mailing_list)
 
+        site_filter = encodeURIComponent(sites.replace(sites_delimiter, '\n'))
         message_str = template.format(record_span=config['history']['span'],
                                       site_query_url=site_filter,
                                       support_email=mailing_list,
@@ -364,19 +368,21 @@ def issue_emails (records, config, now_timestamp):
                                                                         float_format=format_floats,
                                                                         justify='right'),
                                       summary_table=table.to_string(justify='right'),
+                                      aggregated_table=aggregation.to_string(justify='right'),
                                       period=config['history']['period'],
                                       targets=', '.join(target_emails))
 
         print "\nAbout to send email about", sites, "to", target_emails
 
-        send_email("Direct Connections to Frontier servers from " + sites,
-                   message_str,
-                   to=destin,
-                   cc=destin,
-                   reply_to=mailing_list)
+        successful = send_email("Direct Connections to Frontier servers from " + sites,
+                                message_str,
+                                to=destin,
+                                cc=destin,
+                                reply_to=mailing_list)
 
-        sent_emails.append({'Timestamp': now_timestamp, 'Sites': sites,
-                            'Addresses': ', '.join(target_emails)})
+        if successful:
+            sent_emails.append({'Timestamp': now_timestamp, 'Sites': sites,
+                                'Addresses': ', '.join(target_emails)})
 
     new_df = pd.DataFrame.from_records(sent_emails)
     if isinstance(emails_records, pd.DataFrame):
@@ -388,7 +394,6 @@ def issue_emails (records, config, now_timestamp):
 
 def send_email (subject, message, to, reply_to='', cc='', html_message=''):
 
-    COMMASPACE = ", "
     user, host = get_user_and_host_names()
     sender = '%s@%s' % (user, host)
 
@@ -399,11 +404,11 @@ def send_email (subject, message, to, reply_to='', cc='', html_message=''):
 
     msg['Subject'] = subject
     msg['From'] = sender
-    msg['To'] = COMMASPACE.join(receivers)
+    msg['To'] = email.utils.COMMASPACE.join(receivers)
     if reply_to:
         msg.add_header('Reply-to', reply_to)
     if len(copies):
-        msg.add_header('CC', COMMASPACE.join(copies))
+        msg.add_header('CC', email.utils.COMMASPACE.join(copies))
 
     # According to RFC 2046, the last part of a multipart message, in this case
     # the HTML message, is best and preferred.
@@ -412,11 +417,15 @@ def send_email (subject, message, to, reply_to='', cc='', html_message=''):
     if html_message:
         msg.attach( MIMEText(html_message, 'html'))
 
-    smtpObj = smtplib.SMTP('localhost')
-    smtpObj.set_debuglevel(1)
-    smtpObj.sendmail(sender, receivers, msg.as_string())
-    smtpObj.quit()
-    print "\nSuccessfully sent email to:", COMMASPACE.join(receivers)
+    try:
+        smtpObj = smtplib.SMTP('localhost')
+        smtpObj.set_debuglevel(1)
+        smtpObj.sendmail(sender, receivers, msg.as_string())
+        smtpObj.quit()
+        print "\nSuccessfully sent email to:", email.utils.COMMASPACE.join(receivers)
+        return True
+    except:
+        return False
 
 def get_user_and_host_names():
 
