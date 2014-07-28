@@ -1,5 +1,6 @@
 {
    "exception_list": "http://wlcg-squid-monitor.cern.ch/exceptionlist.txt",
+   "base_url": "http://wlcg-squid-monitor.cern.ch/failover/cms/",
    "record_file": "failover-record.csv",
    "geoip_db": "~/scripts/geolist/GeoIPOrg.dat",
    "groups": {

@@ -365,6 +365,7 @@ def issue_emails (records, config, now_timestamp):
         message_str = template.format(record_span=config['history']['span'],
                                       site_query_url=site_filter,
                                       support_email=mailing_list,
+                                      base_url=base_url,
                                       site_name=sites,
                                       server_groups=groups_df.to_string(index=False,
                                                                         float_format=format_floats,

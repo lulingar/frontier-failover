@@ -14,7 +14,7 @@ contact {support_email} by replying to this message.
 
 The record of Frontier activity from your site during the last period ({period:d} minutes)
 is displayed below. The full access history during the past {record_span:d} hours is available
-at http://wlcg-squid-monitor.cern.ch/fftest2/failover.html?site={site_query_url}
+at {base_url}/failover.html?site={site_query_url}
 
 [*] The rate is the effective number of queries per second over each period.
 
