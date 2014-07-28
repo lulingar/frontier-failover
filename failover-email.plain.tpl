@@ -25,5 +25,3 @@ Host aggregation:
 
 Detailed table:
 {summary_table}
-
-To be sent to: {targets} 

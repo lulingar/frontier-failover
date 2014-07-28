@@ -163,7 +163,7 @@ def compute_traffic_delta (now_stats_indexless, last_stats_indexless, now_timest
     # Get the deltas and rates of Hits and Bandwidth of recently updated/added hosts
     now_aligned, last_aligned = now_stats[cols].align(last_stats[cols], join='left')
     # Set previously unrecorded hosts as zero traffic
-    deltas = now_aligned - last_aligned.fillna(0) 
+    deltas = now_aligned - last_aligned.fillna(0)
     # Filter out hosts whose recent activity is null
     are_active = (deltas['Hits'] > 0) & (deltas['Bandwidth'] > 0)
     active = deltas[are_active].copy()
@@ -303,11 +303,11 @@ def mark_activity_for_mail (records, now_timestamp, window=None):
 
 def issue_emails (records, config, now_timestamp):
 
-    marked = mark_activity_for_mail(records, now_timestamp, config['emails']['check_window'])
+    marked = mark_activity_for_mail(records, now_timestamp,
+                                    window=config['emails']['periodicity'])
     if not len(marked):
-        return 
+        return
 
-    destin = "luis.linares@cern.ch"
     sites_delimiter = '; '
 
     template_file = os.path.expanduser(config['emails']['template_file'])
@@ -316,7 +316,7 @@ def issue_emails (records, config, now_timestamp):
     contacts = fl.parse_site_contacts_file(contacts_file)
     mailing_list = config['emails']['support_list']
     emails_records = load_records(config['emails']['record_file'], now_timestamp,
-                                  config['emails']['periodicity'])
+                                  config['history']['span'])
 
     format_floats = lambda f: unicode("{0:.2f}".format(f))
     rate_col_name = "RateThreshold [*]"
@@ -331,8 +331,9 @@ def issue_emails (records, config, now_timestamp):
 
     sent_emails = []
     if isinstance(emails_records, pd.DataFrame):
-        new_sites = set(marked) - set(emails_records.Sites.tolist())
-        print emails_records
+        start_of_window = now_timestamp - config['emails']['periodicity']*3600
+        recent_notifications = emails_records[ emails_records.Timestamp >= start_of_window ]
+        new_sites = set(marked) - set(recent_notifications.Sites.tolist())
     else:
         new_sites = marked
 
@@ -340,24 +341,25 @@ def issue_emails (records, config, now_timestamp):
 
     for sites in new_sites:
 
+        site_list = sites.split(sites_delimiter)
         from_site = records[records.Sites == sites]
         latest_timestamp = from_site.Timestamp.max()
         view = from_site[from_site.Timestamp == latest_timestamp]\
                         .drop(['Sites', 'Timestamp'], axis=1)\
                         .rename(columns={'Group': groupcode_name})
         table = view.set_index(['IsSquid', groupcode_name, 'Host'])\
-                    .sortlevel(0)\
+                    .sortlevel(0, ascending=False)\
                     .reindex(columns=['Ip', 'Hits', 'Bandwidth'])
         table.Bandwidth = table.Bandwidth.apply(fl.from_bytes)
 
-        aggregation = view.groupby(['IsSquid', groupcode_name])['Hits', 'Bandwidth'].sum()
+        aggregation = view.groupby(['IsSquid', groupcode_name])['Hits', 'Bandwidth'].sum()\
+                          .sortlevel(0, ascending=False)
         aggregation.Bandwidth = aggregation.Bandwidth.apply(fl.from_bytes)
 
-        if sites in contacts:
-            target_emails = set(fl.flatten( contacts[site] for site in sites.split(sites_delimiter) ))
+        if any( site in contacts for site in site_list ):
+            target_emails = set(fl.flatten( contacts[site] for site in site_list ))
         else:
-            target_emails = set([destin])
-        target_emails.add(mailing_list)
+            target_emails = set([config['email']['operator_email']])
 
         site_filter = encodeURIComponent(sites.replace(sites_delimiter, '\n'))
         message_str = template.format(record_span=config['history']['span'],
@@ -369,15 +371,14 @@ def issue_emails (records, config, now_timestamp):
                                                                         justify='right'),
                                       summary_table=table.to_string(justify='right'),
                                       aggregated_table=aggregation.to_string(justify='right'),
-                                      period=config['history']['period'],
-                                      targets=', '.join(target_emails))
+                                      period=config['history']['period'])
 
         print "\nAbout to send email about", sites, "to", target_emails
 
         successful = send_email("Direct Connections to Frontier servers from " + sites,
                                 message_str,
-                                to=destin,
-                                cc=destin,
+                                to=target_emails,
+                                cc=mailing_list,
                                 reply_to=mailing_list)
 
         if successful:
@@ -387,6 +388,7 @@ def issue_emails (records, config, now_timestamp):
     new_df = pd.DataFrame.from_records(sent_emails)
     if isinstance(emails_records, pd.DataFrame):
         new_df = pd.concat([emails_records, new_df])
+    new_df.Timestamp = new_df.Timestamp.astype(int)
 
     new_df.to_csv(os.path.expanduser(config['emails']['record_file']), index=False)
 
@@ -419,7 +421,6 @@ def send_email (subject, message, to, reply_to='', cc='', html_message=''):
 
     try:
         smtpObj = smtplib.SMTP('localhost')
-        smtpObj.set_debuglevel(1)
         smtpObj.sendmail(sender, receivers, msg.as_string())
         smtpObj.quit()
         print "\nSuccessfully sent email to:", email.utils.COMMASPACE.join(receivers)
@@ -440,9 +441,9 @@ def make_address_list (addresses):
         receivers = addresses.replace(' ','').split(',')
 
     elif isinstance(addresses, list):
-        receivers = addresses 
+        receivers = addresses
 
-    return receivers 
+    return receivers
 
 def encodeURIComponent(to_encode):
 

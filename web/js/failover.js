@@ -8,11 +8,11 @@ var Failover = new function() {
     //  have the object "this" pointing to the Global scope (a.k.a. "Window")
     //  So to reference to this object, use "self" instead.
 
+    self.config_file = "config.json";
     self.time_chart = dc.seriesChart("#time-chart");
     self.group_chart = dc.pieChart("#group-chart");
     self.squid_chart = dc.pieChart("#squid-chart");
     self.hosts_table = dc.dataTable("#hosts-table");
-    self.data_file = "failover.csv";
     self.date_format = d3.time.format("%b %d, %Y %I:%M %p");
     self.sites_legend_item_size = 17;
     self.sites_legend_item_gap = 4;
@@ -23,41 +23,30 @@ var Failover = new function() {
     self.groups_radius = self.groups_base_dim/2 - 15;
 
     self.start = function() {
-        var q;
-
-        q = queue().defer(d3.json, "config.json")
-                   .defer(d3.csv, self.data_file);
-        q.await(self.setup);
+        d3.json(self.config_file, 
+                function (error, config) {
+                    self.create_objects(config);
+                    queue().defer(d3.csv, self.config["record_file"])
+                           .defer(d3.csv, self.config["emails"]["record_file"])
+                           .await(self.first_setup);
+                });
     };
 
-    self.setup = function(error, config, dataset) {
+    self.first_setup = function(error, dataset, emails) {
 
-        // This validates on page load.
-        if (!self.config) self.create_objects(config);
+        self.setup_base();
+        self.setup_update(dataset, emails);
+        dc.renderAll();
+        self.apply_url_filters();
+    };
 
-        self.ndx.add(self.process_data(dataset));
+    self.setup_base = function() {
 
-        self.site_list = self.site_D.group().all().map(dc.pluck('key'));
-        self.site_names_len = flatten_array( self.site_list.map( function(s) {
-                            return s.split('\n').map( function(s){ return s.length });
-                        }) );
-        self.site_longest_name = Math.max.apply(0, self.site_names_len);
-        self.num_lines = 1 + self.site_names_len.length;
-        self.sites_legend_space_v = self.num_lines * (self.sites_legend_item_size +
-                                                      self.sites_legend_item_gap);
-        self.sites_legend_columns = Math.ceil(self.sites_legend_space_v / (0.9*self.time_chart_height));
-        self.sites_legend_space_h = (7 * self.site_longest_name) * self.sites_legend_columns + 20;
-
-        self.update_time_extent(self.period, self.extent_span);
-
-        // The time series
-        self.sites_color_scale = hsl_set(self.site_list.length, 70, 50);
-        self.time_chart.width(self.time_chart_width)
+        // The time series chart
+        self.time_chart
+                  .width(self.time_chart_width)
                   .height(self.time_chart_height)
-                  .margins({ top: 30, right: 30 + self.sites_legend_space_h,
-                             bottom: 60, left: 70 })
                   .chart( function(c) { return dc.barChart(c) } )
-                  .ordinalColors(self.sites_color_scale)
                   .dimension(self.time_site_D)
                   .group(self.time_sites_G)
                   .keyAccessor(function(d) { return d.key[0]; })
@@ -67,13 +56,7 @@ var Failover = new function() {
                   .xAxisLabel("Time")
                   .yAxisLabel("Hits")
                   .elasticY(true)
-                  .x(d3.time.scale().domain(self.extent))
-                  .xUnits(self.periodRange)
                   .renderHorizontalGridLines(true)
-                  .legend( dc.legend()
-                             .x( 1024-self.sites_legend_space_h ).y(10)
-                             .itemWidth(150).itemHeight(self.sites_legend_item_size)
-                             .gap(4) )
                   .brushOn(false)
                   .renderlet(function(chart) {
                       chart.selectAll(".dc-legend-item")
@@ -120,7 +103,8 @@ var Failover = new function() {
         }
 
         // The group chart
-        self.group_chart.width(self.groups_base_dim)
+        self.group_chart
+                .width(self.groups_base_dim)
                 .height(self.groups_base_dim)
                 .radius(self.groups_radius)
                 .innerRadius(0.3*self.groups_radius)
@@ -138,7 +122,8 @@ var Failover = new function() {
                 .legend( dc.legend().x(self.groups_base_dim).y(50).gap(10) );
 
         // The host (squid/not squid) chart
-        self.squid_chart.width(self.groups_base_dim)
+        self.squid_chart
+                .width(self.groups_base_dim)
                 .height(self.groups_base_dim)
                 .radius(self.groups_radius)
                 .innerRadius(0.3*self.groups_radius)
@@ -151,7 +136,7 @@ var Failover = new function() {
                             return "0%";
                         return (100 * d.value / self.all.value()).toFixed(2) + "%";
                     })
-                .legend( dc.legend().x(self.groups_base_dim).y(50).gap(10) )
+                .legend( dc.legend().x(self.groups_base_dim).y(50).gap(10) );
 
         // Table widget for displaying failover details
         self.sort_order = {false: d3.ascending,
@@ -161,7 +146,8 @@ var Failover = new function() {
                                  'Time': 'Timestamp', 'Hits': 'Hits',
                                  'Bandwidth' : 'Bandwidth' };
         self.hosts_table_filter_control = d3.select('#ht-reset');
-        self.hosts_table.dimension(self.site_D)
+        self.hosts_table
+                .dimension(self.site_D)
                 .group(function(d) { return d.Sites.replace(/\n/g, ' | '); })
                 .columns([
                         function(d) {
@@ -225,11 +211,67 @@ var Failover = new function() {
             self.hosts_table.sortBy(dc.pluck(field));
             self.hosts_table.redraw();
         });
+    };
 
-        // Draw all objects
-        dc.renderAll();
+    self.setup_update = function(dataset, emails) {
 
-        self.apply_url_filters();
+        self.ndx.add(self.parse_failover_records(dataset));
+        self.emails_data = self.parse_email_records(emails);
+
+        self.site_list = self.site_D.group().all().map(dc.pluck('key'));
+        self.site_names_len = flatten_array( self.site_list.map( function(s) {
+                            return s.split('\n').map( function(s){ return s.length });
+                        }) );
+        self.site_longest_name = Math.max.apply(0, self.site_names_len);
+        self.num_lines = 1 + self.site_names_len.length;
+        self.sites_legend_space_v = self.num_lines * (self.sites_legend_item_size +
+                                                      self.sites_legend_item_gap);
+        self.sites_legend_columns = Math.ceil(self.sites_legend_space_v / (0.9*self.time_chart_height));
+        self.sites_legend_space_h = (7 * self.site_longest_name) * self.sites_legend_columns + 20;
+
+        self.update_time_extent(self.period, self.extent_span);
+
+        // The time series chart
+        self.sites_color_scale = hsl_set(self.site_list.length, 70, 50);
+        self.time_chart
+                  .margins({ top: 30, right: 30 + self.sites_legend_space_h,
+                             bottom: 70, left: 70 })
+                  .ordinalColors(self.sites_color_scale)
+                  .x(d3.time.scale().domain(self.extent))
+                  .xUnits(self.periodRange)
+                  .legend( dc.legend()
+                             .x( 1024-self.sites_legend_space_h ).y(10)
+                             .itemWidth(150).itemHeight(self.sites_legend_item_size)
+                             .gap(4) );
+
+        // Email record
+        self.email_table_update(self.emails_data);
+        d3.select('#email-history').text(self.config["history"]["span"]);
+        d3.select('#email-period').text(self.config["emails"]["periodicity"]);
+    };
+
+    self.email_table_update = function(emails_data) {
+
+        var table = d3.select("#emails-table-div table");
+        table.selectAll("tbody").remove();
+
+        var body = table.append("tbody"),
+            rows = body.selectAll("tr")
+                       .data(emails_data)
+                       .enter()
+                       .append("tr"),
+            columns = [
+                        function(d) { return d.Sites; },
+                        function(d) { return '<ul class="no-bullets"><li>'
+                                            + d.Addresses.join('</li><li>')
+                                            + "</li></ul>"; },
+                        function(d) { return self.date_format(d.Timestamp); }
+                ];
+
+        columns.forEach( function(f, i) {
+            rows.append("td")
+                .html(f);
+        });
     };
 
     self.create_objects = function(config) {
@@ -266,7 +308,7 @@ var Failover = new function() {
         self.hits_G = self.hits_D.group().reduce(self.addH, self.remH, self.ini);
     };
 
-    self.process_data = function(dataset) {
+    self.parse_failover_records = function(dataset) {
         var dataset = dataset;
 
         dataset.forEach( function(d) {
@@ -287,14 +329,30 @@ var Failover = new function() {
         return dataset;
     };
 
+    self.parse_email_records = function(emails) {
+        var emails = emails;
+
+        emails.forEach( function(d) {
+            d.Timestamp = new Date(1000 * (+d.Timestamp));
+            d.Timestamp.setMinutes(0);
+            d.Timestamp.setSeconds(0);
+
+            d.Sites = d.Sites.replace(/; /g, '\n');
+            d.Addresses = d.Addresses.replace(/@/g, '_AT_')
+                                     .split(", ");
+        });
+
+        return emails;
+    };
+
     self.reload = function() {
-        d3.csv( self.data_file,
-                function (error, dataset) {
+        queue().defer(d3.csv, self.config["record_file"])
+               .defer(d3.csv, self.config["emails"]["record_file"])
+               .await(function (error, dataset, emails) {
                     self.ndx.remove();
-                    self.ndx.add( self.process_data(dataset));
-                    self.update_time_extent(self.period, self.extent_span);
+                    self.setup_update(dataset, emails);
                     dc.redrawAll();
-                } );
+                });
     };
 
     self.update_time_extent = function(period, extent_span) {
@@ -309,7 +367,7 @@ var Failover = new function() {
             extent_pad = [new Date(this_hour - extent_span - hour),
                           new Date(this_hour + hour)];
 
-        // Show the currently plotted time span
+        // Do show the currently plotted time span
         d3.select("#date-start")
           .attr("datetime", extent[0])
           .text(self.date_format(extent[0]));
@@ -318,7 +376,6 @@ var Failover = new function() {
           .text(self.date_format(extent[1]));
 
         self.extent = extent_pad;
-        self.time_chart.x(d3.time.scale().domain(self.extent));
     };
 
     self.time_chart_reset = function() {
