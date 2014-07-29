@@ -261,7 +261,10 @@ var Failover = new function() {
                        .enter()
                        .append("tr"),
             columns = [
-                        function(d) { return d.Sites; },
+                        function(d) { return '<ul class="no-bullets"><li>'
+                                            + d.Sites.split('\n')
+                                               .join(';</li><li>')
+                                            + "</li></ul>"; },
                         function(d) { return '<ul class="no-bullets"><li>'
                                             + d.Addresses.join('</li><li>')
                                             + "</li></ul>"; },
