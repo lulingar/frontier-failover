@@ -47,14 +47,11 @@ var Failover = new function() {
                   .width(self.time_chart_width)
                   .height(self.time_chart_height)
                   .chart( function(c) { return dc.barChart(c) } )
-                  .dimension(self.time_site_D)
-                  .group(self.time_sites_G)
                   .keyAccessor(function(d) { return d.key[0]; })
                   .seriesAccessor(function(d) { return d.key[1]; })
                   .seriesSort(d3.descending)
                   .title(function(d) { return d.key[1] + ": " + d.value + " Hits"; })
                   .xAxisLabel("Time")
-                  .yAxisLabel("Hits")
                   .elasticY(true)
                   .renderHorizontalGridLines(true)
                   .brushOn(false)
@@ -234,8 +231,11 @@ var Failover = new function() {
         // The time series chart
         self.sites_color_scale = hsl_set(self.site_list.length, 70, 50);
         self.time_chart
+                  .yAxisLabel("Hits")
+                  .dimension(self.time_site_D)
+                  .group(self.time_sites_G)
                   .margins({ top: 30, right: 30 + self.sites_legend_space_h,
-                             bottom: 70, left: 70 })
+                             bottom: 70, left: 80 })
                   .ordinalColors(self.sites_color_scale)
                   .x(d3.time.scale().domain(self.extent))
                   .xUnits(self.periodRange)
@@ -294,7 +294,7 @@ var Failover = new function() {
         self.all = self.ndx.groupAll().reduce(self.addH, self.remH, self.ini);
 
         self.site_D = self.ndx.dimension(dc.pluck('Sites'))
-        self.time_D = self.ndx.dimension(dc.pluck('Timestamp'));
+        self.bandwidth_D = self.ndx.dimension(dc.pluck('Bandwidth'));
         self.hits_D = self.ndx.dimension(dc.pluck('Hits'));
         self.host_D = self.ndx.dimension(dc.pluck('Host'));
         self.group_D = self.ndx.dimension( function(d) {
