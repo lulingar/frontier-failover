@@ -1,6 +1,7 @@
 #!/usr/bin/env python
 
 import calendar
+import collections
 import getpass
 import json
 import numbers
@@ -9,9 +10,11 @@ import smtplib
 import socket
 import sys
 import time
+import types
 import urllib
 
 from datetime import datetime
+
 import email
 from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText
@@ -20,10 +23,6 @@ import pandas as pd
 
 import FailoverLib as fl
 
-"""
-TODO
-     See comments in the code for TODO items
-"""
 def main():
 
     pd.options.display.width = 180
@@ -107,22 +106,13 @@ def analyze_failovers_to_group (config, groupname, now_timestamp, past_records, 
     awdata = compute_traffic_delta( awdata, last_awdata, now_timestamp, last_timestamp)
 
     if len(awdata) > 0:
-
-        awdata['IsSquid'] = awdata['Ip'].isin(geo['Ip'])
-        awdata = tagger_object.tag_hosts(awdata, 'Ip')
-        offending = excess_failover_check(awdata, site_rate_threshold)
-
-        """
-        squid_alias_map = fl.get_squid_host_alias_map(geo)
-        offending['Alias'] = ''
-        offending['Alias'][offending['IsSquid']] = offending['Host'][offending['IsSquid']].map(squid_alias_map)
-        """
-
+        tagged_data = tagger_object.tag_hosts(awdata, 'Ip')
+        offending = excess_failover_check(tagged_data, site_rate_threshold)
     else:
         offending = None
 
-    failovers = update_record (offending, past_records, now_timestamp)
-    gen_report (offending, groupconf['name'])
+    failovers = update_record(offending, past_records, now_timestamp)
+    gen_report(offending, groupconf['name'])
 
     return failovers
 
@@ -315,6 +305,8 @@ def issue_emails (records, config, now_timestamp):
     contacts_file = os.path.expanduser(config['emails']['list_file'])
     contacts = fl.parse_site_contacts_file(contacts_file)
     mailing_list = config['emails']['support_list']
+    operator_email = config['emails']['operator_email']
+    alarm_list = config['emails']['alarm_list']
     emails_records = load_records(config['emails']['record_file'], now_timestamp,
                                   config['history']['span'])
 
@@ -357,15 +349,15 @@ def issue_emails (records, config, now_timestamp):
         aggregation.Bandwidth = aggregation.Bandwidth.apply(fl.from_bytes)
 
         if any( site in contacts for site in site_list ):
-            target_emails = set(fl.flatten( contacts[site] for site in site_list ))
+            target_emails = fl.flatten( contacts[site] for site in site_list )
         else:
-            target_emails = set([config['email']['operator_email']])
+            target_emails = [ operator_email ]
 
         site_filter = encodeURIComponent(sites.replace(sites_delimiter, '\n'))
         message_str = template.format(record_span=config['history']['span'],
                                       site_query_url=site_filter,
                                       support_email=mailing_list,
-                                      base_url=base_url,
+                                      base_url=config['base_url'],
                                       site_name=sites,
                                       server_groups=groups_df.to_string(index=False,
                                                                         float_format=format_floats,
@@ -374,17 +366,18 @@ def issue_emails (records, config, now_timestamp):
                                       aggregated_table=aggregation.to_string(justify='right'),
                                       period=config['history']['period'])
 
-        print "\nAbout to send email about", sites, "to", target_emails
+        print "\nAbout to send email about", sites, "to:", email.utils.COMMASPACE.join(target_emails)
 
         successful = send_email("Direct Connections to Frontier servers from " + sites,
                                 message_str,
                                 to=target_emails,
-                                cc=mailing_list,
+                                cc=alarm_list,
                                 reply_to=mailing_list)
 
         if successful:
             sent_emails.append({'Timestamp': now_timestamp, 'Sites': sites,
                                 'Addresses': ', '.join(target_emails)})
+            time.sleep(1)
 
     new_df = pd.DataFrame.from_records(sent_emails)
     if isinstance(emails_records, pd.DataFrame):
@@ -397,7 +390,8 @@ def issue_emails (records, config, now_timestamp):
 
 def send_email (subject, message, to, reply_to='', cc='', html_message=''):
 
-    user, host = get_user_and_host_names()
+    #user, host = get_user_and_host_names()
+    user, host = "squidmon", "mail.cern.ch"
     sender = '%s@%s' % (user, host)
 
     receivers = make_address_list(to)
@@ -406,7 +400,7 @@ def send_email (subject, message, to, reply_to='', cc='', html_message=''):
     msg = MIMEMultipart('alternative')
 
     msg['Subject'] = subject
-    msg['From'] = sender
+    #msg['From'] = sender
     msg['To'] = email.utils.COMMASPACE.join(receivers)
     if reply_to:
         msg.add_header('Reply-to', reply_to)
@@ -422,9 +416,11 @@ def send_email (subject, message, to, reply_to='', cc='', html_message=''):
 
     try:
         smtpObj = smtplib.SMTP('localhost')
-        smtpObj.sendmail(sender, receivers, msg.as_string())
+        smtpObj.set_debuglevel(True)
+        smtpObj.sendmail(sender, receivers + copies, msg.as_string())
         smtpObj.quit()
-        print "\nSuccessfully sent email to:", email.utils.COMMASPACE.join(receivers)
+        print "\nSuccessfully sent email to:", msg['To']
+        print " CC'ed to:", msg['CC']
         return True
     except:
         return False
@@ -438,13 +434,17 @@ def get_user_and_host_names():
 
 def make_address_list (addresses):
 
-    if isinstance(addresses, str):
+    if isinstance(addresses, types.StringTypes):
         receivers = addresses.replace(' ','').split(',')
 
-    elif isinstance(addresses, list):
+    elif isinstance(addresses, collections.Iterable):
         receivers = addresses
+    else:
+        raise TypeError("Bad Addresses list:" + repr(addresses))
 
-    return receivers
+    address_list = list(set(receivers))
+
+    return address_list
 
 def encodeURIComponent(to_encode):
 

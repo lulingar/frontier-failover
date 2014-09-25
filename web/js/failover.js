@@ -21,6 +21,7 @@ var Failover = new function() {
     self.groups_base_dim = 150;
     self.groups_legend_width = 200;
     self.groups_radius = self.groups_base_dim/2 - 15;
+    self.time_zone_offset = 0;
 
     self.start = function() {
         d3.json(self.config_file, 
@@ -212,6 +213,10 @@ var Failover = new function() {
 
     self.setup_update = function(dataset, emails) {
 
+        self.dataset = dataset;
+        self.emails_rec = emails;
+
+        self.set_time_offset();
         self.ndx.add(self.parse_failover_records(dataset));
         self.emails_data = self.parse_email_records(emails);
 
@@ -248,6 +253,17 @@ var Failover = new function() {
         self.email_table_update(self.emails_data);
         d3.select('#email-history').text(self.config["history"]["span"]);
         d3.select('#email-period').text(self.config["emails"]["periodicity"]);
+    };
+
+    self.set_time_offset = function() {
+        var offsets = {"local": new Date().getTimezoneOffset(),
+                       "utc": 0,
+                       "cern": -120},
+            e = document.getElementById("timezone"),
+            chosen_offset = e.options[e.selectedIndex].value;
+
+        // D3 or JS will be default render times in local zone
+        self.time_zone_offset = -60e3*(offsets[chosen_offset] - offsets['local']);
     };
 
     self.email_table_update = function(emails_data) {
@@ -312,40 +328,57 @@ var Failover = new function() {
     };
 
     self.parse_failover_records = function(dataset) {
-        var dataset = dataset;
+        // The input element needs to remain intact, so a
+        // copy is prepared
+        var processed = [];
 
         dataset.forEach( function(d) {
+            var row = {};
+
             // The timestamp points to the end of a period.
             //  this must be accounted for for plotting.
-            d.Timestamp = new Date((+d.Timestamp - 3600) * 1000);
-            d.Timestamp.setMinutes(0);
-            d.Timestamp.setSeconds(0);
+            row.Timestamp = new Date(1e3*(+d.Timestamp - 3600) + self.time_zone_offset);
+            row.Timestamp.setMinutes(0);
+            row.Timestamp.setSeconds(0);
 
-            d.Hits = +d.Hits;
-            d.HitsRate = +d.HitsRate;
-            d.Bandwidth = +d.Bandwidth;
-            d.BandwidthRate = +d.BandwidthRate;
-            d.IsSquid = (d.IsSquid == "True");
-            d.Sites = d.Sites.replace(/; /g, '\n');
+            row.Hits = +d.Hits;
+            row.HitsRate = +d.HitsRate;
+            row.Bandwidth = +d.Bandwidth;
+            row.BandwidthRate = +d.BandwidthRate;
+            row.IsSquid = (d.IsSquid == "True");
+            row.Sites = d.Sites.replace(/; /g, '\n');
+
+            row.Host = d.Host;
+            row.Ip = d.Ip;
+            row.Alias = d.Alias;
+            row.Group = d.Group;
+
+            processed.push(row);
         });
 
-        return dataset;
+        return processed;
     };
 
     self.parse_email_records = function(emails) {
-        var emails = emails;
+        // The input element needs to remain intact, so a
+        // copy is prepared
+        var processed = [];
 
         emails.forEach( function(d) {
-            d.Timestamp = new Date(1000 * (+d.Timestamp));
-            d.Timestamp.setMinutes(0);
-            d.Timestamp.setSeconds(0);
+            var row = {};
 
-            d.Sites = d.Sites.replace(/; /g, '\n');
-            d.Addresses = d.Addresses.replace(/@/g, '_AT_')
-                                     .split(", ");
+            row.Timestamp = new Date(1000 * (+d.Timestamp));
+            row.Timestamp.setMinutes(0);
+            row.Timestamp.setSeconds(0);
+
+            row.Sites = d.Sites.replace(/; /g, '\n');
+            row.Addresses = d.Addresses.replace(/@/g, '_AT_')
+                                       .split(", ");
+
+            processed.push(row);
         });
 
-        return emails;
+        return processed;
     };
 
     self.reload = function() {
@@ -358,13 +391,19 @@ var Failover = new function() {
                 });
     };
 
+    self.redraw_offset = function() {
+        self.ndx.remove();
+        self.setup_update(self.dataset, self.emails_rec);
+        dc.renderAll();
+    };
+
     self.update_time_extent = function(period, extent_span) {
 
         var periodObj = minuteBunch(period),
             periodRange = periodObj.range,
             hour = 3.6e6,
             now = new Date(),
-            this_hour = periodObj(now).getTime(),
+            this_hour = periodObj(now).getTime() + self.time_zone_offset,
             extent = [new Date(this_hour - extent_span),
                       new Date(this_hour)],
             extent_pad = [new Date(this_hour - extent_span - hour),

@@ -26,7 +26,7 @@
                     <button onclick="Failover.reload()" class="btn btn-primary">Update</button>
                 </div>
             </div>
-            <div class="col-xs-12 col-sm-6 col-lg-8">
+            <div class="col-xs-6 col-sm-3 col-lg-4">
                 <strong>Time:</strong>
                 <p>
                     <small>
@@ -34,6 +34,14 @@
                         <time id="date-end"></time>
                     </small>
                 </p>
+            </div>
+            <div class="col-xs-2 col-sm-2 col-lg-2">
+                <strong>Time Zone:</strong>
+                <select id="timezone" class="form-control" onchange="Failover.set_time_offset(); Failover.redraw_offset()">
+                    <option value="local">Local</option>
+                    <option value="utc">UTC</option>
+                    <option value="cern">CERN</option>
+                </select>
             </div>
         </div>
     </div>

@@ -78,23 +78,17 @@ def get_awstats_hosts_info (awstats_file, parse_timestamps=False):
             last_visit_dt = fields[4]
 
         aws_list.append({'Host': host, 'Pages': pages, 'Hits': hits,
-                        'Bandwidth': bandwidth, 'Last visit': last_visit_dt})
+                         'Bandwidth': bandwidth, 'Last visit': last_visit_dt})
     awsf.close()
 
     return aws_list
 
 def download_aggregated_awstats_data (machines, base_path, date=None):
 
-    data = {}
-    for machine in machines:
-        data[machine] = load_awstats_data(machine, base_path, date).set_index('Host')
+    ag = [ load_awstats_data(machine, base_path, date) for machine in machines ]
 
-    panel = pd.Panel(data)
-    frame = panel.transpose(minor='items', items='minor', major='major')\
-                 .to_frame(filter_observations=True)
-    aggregated = frame.groupby(level=0).agg( {'Hits': sum,
-                                              'Bandwidth': sum})
-    aggregated.index.name = 'Host'
+    aggregated = pd.concat(ag).groupby('Host').agg({'Hits': sum,
+                                                    'Bandwidth': sum})
     aggregated.reset_index(inplace=True)
 
     aggregated['Ip'] = aggregated['Host'].apply(get_host_ipv4_addr)
@@ -227,11 +221,13 @@ def patch_geo_table (geo, MO_view, WN_view, actions, geoip):
 def tag_hosts (dataframe, host_ip_field, squids_institute_sites_map, squids_ip_sites_map, geo, geoip):
 
     data = dataframe.copy()
+
+    data['IsSquid'] = data[host_ip_field].isin(geo['Ip'])
+
     data['Sites'] = ''
     wn_fun = partial(assign_site_workernode, squids_inst_site_map=squids_institute_sites_map,
                                              geoip=geoip )
     #TODO: Implement IP exception for some French machines
-
     data['Sites'] = data[host_ip_field].apply(wn_fun)
 
     return data
